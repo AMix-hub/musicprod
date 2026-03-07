@@ -1,0 +1,2 @@
+[console_scripts]
+musicprod = musicprod.cli:cli
