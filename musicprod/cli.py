@@ -39,6 +39,7 @@ def cli() -> None:
       19. compress-audio    Apply dynamic range compression
       20. create-loop       Repeat audio N times to create a loop
       --  hub               Launch the graphical MusicProd Hub
+      --  update            Update to the latest version from main
     """
 
 
@@ -722,6 +723,34 @@ def create_loop(input_path: str, count: int, crossfade: int, output: str | None)
         click.secho(f"Saved: {result}", fg="green")
     except (FileNotFoundError, ValueError, RuntimeError) as exc:
         click.secho(f"Error: {exc}", fg="red", err=True)
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# Update — pull the latest changes from main
+# ---------------------------------------------------------------------------
+
+@cli.command("update")
+def update() -> None:
+    """Update MusicProd to the latest version from the main branch.
+
+    For development (git-clone) installs the command runs ``git pull``
+    inside the repository directory.  For regular pip installs it
+    upgrades the package via ``pip install --upgrade git+<repo>``.
+
+    \b
+    Example:
+        musicprod update
+    """
+    from musicprod.tools.updater import self_update
+
+    click.echo("Checking for updates…")
+    try:
+        method, message = self_update()
+        label = "git pull" if method == "git" else "pip upgrade"
+        click.secho(f"[{label}] {message}", fg="green")
+    except RuntimeError as exc:
+        click.secho(f"Update failed: {exc}", fg="red", err=True)
         sys.exit(1)
 
 

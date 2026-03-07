@@ -44,6 +44,26 @@ The hub provides:
 
 ---
 
+## Updating MusicProd
+
+When a new version is pushed to `main` you don't need to re-download or
+re-install the whole project.  Just run:
+
+```bash
+musicprod update
+```
+
+The command automatically detects how the package is installed:
+
+- **Git clone (editable install)** — runs `git pull --ff-only` inside the
+  repository directory.  Because the package is installed with
+  `pip install -e .`, the updated code is active immediately — no reinstall
+  needed.
+- **Regular pip install** — upgrades the package from the GitHub repository
+  with `pip install --upgrade git+https://github.com/AMix-hub/musicprod.git`.
+
+---
+
 ## Quick Start
 
 Follow these steps to go from a fresh clone to running commands in under five minutes.
