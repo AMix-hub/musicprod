@@ -1100,13 +1100,63 @@ class MusicProdHub(tk.Tk):
         body = ttk.Frame(self)
         body.pack(fill="both", expand=True)
 
-        # Sidebar
-        sidebar = ttk.Frame(body, style="Sidebar.TFrame", width=200)
-        sidebar.pack(side="left", fill="y")
-        sidebar.pack_propagate(False)
+        # Sidebar (scrollable)
+        sidebar_outer = ttk.Frame(body, style="Sidebar.TFrame", width=200)
+        sidebar_outer.pack(side="left", fill="y")
+        sidebar_outer.pack_propagate(False)
 
-        ttk.Label(sidebar, text="🎀 TOOLS 🎀", style="Header.TLabel",
+        ttk.Label(sidebar_outer, text="🎀 TOOLS 🎀", style="Header.TLabel",
                   padding=(12, 10, 0, 4)).pack(anchor="w")
+
+        # Canvas + scrollbar for scrollable tool list
+        sidebar_canvas = tk.Canvas(
+            sidebar_outer,
+            bg=SIDEBAR_BG,
+            highlightthickness=0,
+            borderwidth=0,
+        )
+        sidebar_scrollbar = ttk.Scrollbar(
+            sidebar_outer, orient="vertical", command=sidebar_canvas.yview
+        )
+        sidebar_canvas.configure(yscrollcommand=sidebar_scrollbar.set)
+
+        sidebar_scrollbar.pack(side="right", fill="y")
+        sidebar_canvas.pack(side="left", fill="both", expand=True)
+
+        sidebar = ttk.Frame(sidebar_canvas, style="Sidebar.TFrame")
+        sidebar_window = sidebar_canvas.create_window(
+            (0, 0), window=sidebar, anchor="nw"
+        )
+
+        def _on_sidebar_configure(_event: tk.Event) -> None:
+            sidebar_canvas.configure(scrollregion=sidebar_canvas.bbox("all"))
+
+        def _on_canvas_resize(event: tk.Event) -> None:
+            if hasattr(event, "width") and event.width > 0:
+                sidebar_canvas.itemconfig(sidebar_window, width=event.width)
+
+        sidebar.bind("<Configure>", _on_sidebar_configure)
+        sidebar_canvas.bind("<Configure>", _on_canvas_resize)
+
+        def _on_mousewheel(event: tk.Event) -> None:
+            # Cross-platform mouse wheel scrolling
+            if event.num == 4:
+                sidebar_canvas.yview_scroll(-1, "units")
+            elif event.num == 5:
+                sidebar_canvas.yview_scroll(1, "units")
+            else:
+                # event.delta is 120-per-notch on Windows; on macOS it can be
+                # much smaller (±1). Use int(…) or 1 so we always scroll at
+                # least one unit.
+                delta = int(-1 * (event.delta / 120)) or (-1 if event.delta > 0 else 1)
+                sidebar_canvas.yview_scroll(delta, "units")
+
+        sidebar_canvas.bind("<MouseWheel>", _on_mousewheel)
+        sidebar_canvas.bind("<Button-4>", _on_mousewheel)
+        sidebar_canvas.bind("<Button-5>", _on_mousewheel)
+        sidebar.bind("<MouseWheel>", _on_mousewheel)
+        sidebar.bind("<Button-4>", _on_mousewheel)
+        sidebar.bind("<Button-5>", _on_mousewheel)
 
         self._sidebar_buttons: list[ttk.Button] = []
         for i, panel_cls in enumerate(_PANELS):
@@ -1117,6 +1167,9 @@ class MusicProdHub(tk.Tk):
                 command=lambda idx=i: self._select_tool(idx),
             )
             btn.pack(fill="x", pady=1)
+            btn.bind("<MouseWheel>", _on_mousewheel)
+            btn.bind("<Button-4>", _on_mousewheel)
+            btn.bind("<Button-5>", _on_mousewheel)
             self._sidebar_buttons.append(btn)
 
         ttk.Separator(body, orient="vertical").pack(side="left", fill="y")
