@@ -67,6 +67,11 @@ def merge_audio(
     else:
         dest = first.parent / f"merged{first.suffix}"
 
+    # Ensure the destination always has a file extension so the exported
+    # file is recognisable (e.g. merged.mp3, not just merged).
+    if not dest.suffix:
+        dest = dest.with_suffix(first.suffix or ".mp3")
+
     try:
         fmt = dest.suffix.lstrip(".") or "mp3"
         combined.export(str(dest), format=fmt)

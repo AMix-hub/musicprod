@@ -1,48 +1,51 @@
-"""Tool 6 — Audio Normalizer.
+"""Tool 14 — Channel Converter.
 
-Normalizes the loudness of an audio file to a target dBFS level using pydub.
+Converts an audio file between stereo and mono using pydub.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
+_VALID_CHANNELS = (1, 2)
 
-def normalize_audio(
+
+def convert_channels(
     input_path: str,
-    target_dbfs: float = -14.0,
+    channels: int = 1,
     output_path: str | None = None,
 ) -> Path:
-    """Normalize the loudness of *input_path* to *target_dbfs*.
+    """Convert the channel layout of *input_path*.
 
     Parameters
     ----------
     input_path:
         Path to the source audio file.
-    target_dbfs:
-        Target loudness in dBFS (default: -14.0, a common streaming standard).
-        Must be <= 0.
+    channels:
+        Target number of channels: ``1`` for mono, ``2`` for stereo
+        (default: 1).
     output_path:
-        Optional destination path.  Defaults to ``<stem>_normalized.<ext>``.
+        Optional destination path.  Defaults to
+        ``<stem>_mono.<ext>`` or ``<stem>_stereo.<ext>``.
 
     Returns
     -------
     Path
-        Path to the normalized file.
+        Path to the converted file.
 
     Raises
     ------
     FileNotFoundError
         If *input_path* does not exist.
     ValueError
-        If *target_dbfs* is greater than 0.
+        If *channels* is not 1 or 2.
     RuntimeError
         If pydub / FFmpeg fails.
     """
     from pydub import AudioSegment  # lazy import
 
-    if target_dbfs > 0:
-        raise ValueError(f"target_dbfs must be <= 0, got {target_dbfs}")
+    if channels not in _VALID_CHANNELS:
+        raise ValueError(f"channels must be 1 (mono) or 2 (stereo), got {channels}")
 
     src = Path(input_path).expanduser().resolve()
     if not src.exists():
@@ -53,23 +56,23 @@ def normalize_audio(
     except Exception as exc:
         raise RuntimeError(f"Failed to load audio: {exc}") from exc
 
-    change_in_dbfs = target_dbfs - audio.dBFS
-    normalized = audio.apply_gain(change_in_dbfs)
+    converted = audio.set_channels(channels)
 
+    suffix = "mono" if channels == 1 else "stereo"
     if output_path:
         dest = Path(output_path).expanduser().resolve()
     else:
-        dest = src.with_name(f"{src.stem}_normalized{src.suffix}")
+        dest = src.with_name(f"{src.stem}_{suffix}{src.suffix}")
 
     # Ensure the destination always has a file extension so the exported
-    # file is recognisable (e.g. song_normalized.mp3, not just song_normalized).
+    # file is recognisable (e.g. song_mono.mp3, not just song_mono).
     if not dest.suffix:
         dest = dest.with_suffix(src.suffix or ".mp3")
 
     try:
         fmt = dest.suffix.lstrip(".") or "mp3"
-        normalized.export(str(dest), format=fmt)
+        converted.export(str(dest), format=fmt)
     except Exception as exc:
-        raise RuntimeError(f"Failed to export normalized audio: {exc}") from exc
+        raise RuntimeError(f"Failed to export audio: {exc}") from exc
 
     return dest
