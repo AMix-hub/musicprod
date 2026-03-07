@@ -1,4 +1,4 @@
-"""MusicProd Hub — Tkinter GUI giving access to all 10 music production tools."""
+"""MusicProd Hub — Tkinter GUI giving access to all 20 music production tools."""
 
 from __future__ import annotations
 
@@ -516,6 +516,463 @@ class _WaveformPanel(_ToolPanel):
         self._run_in_thread(task)
 
 
+class _NoiseReducerPanel(_ToolPanel):
+    title = "Noise Reducer"
+    icon = "🔇"
+
+    def _build(self) -> None:
+        ttk.Label(self, text="Reduce background noise via spectral subtraction 🔇", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Input file")
+        self._file.pack(fill="x", expand=True)
+
+        r2 = self._row()
+        self._noise_dur = _LabeledEntry(r2, "Noise duration (s)", "0.5")
+        self._noise_dur.pack(fill="x", expand=True)
+
+        r3 = self._row()
+        self._strength = _LabeledEntry(r3, "Strength (0–3)", "1.0")
+        self._strength.pack(fill="x", expand=True)
+
+        r4 = self._row()
+        self._out = _FileEntry(r4, "Output file (opt.)", mode="save")
+        self._out.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="🔇  Reduce Noise", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an input file.", "error")
+            return
+        try:
+            noise_dur = float(self._noise_dur.value)
+            strength = float(self._strength.value)
+        except ValueError:
+            self._log("Noise duration and strength must be numbers.", "error")
+            return
+        out = self._out.value or None
+        self._log(f"Reducing noise in {path!r} …", "info")
+        def task() -> None:
+            try:
+                from musicprod.tools.noise_reducer import reduce_noise
+                result = reduce_noise(path, noise_duration=noise_dur, strength=strength, output_path=out)
+                self._log(f"Saved: {result}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+        self._run_in_thread(task)
+
+
+class _FadePanel(_ToolPanel):
+    title = "Fade Effect"
+    icon = "🌅"
+
+    def _build(self) -> None:
+        ttk.Label(self, text="Add fade-in / fade-out to an audio file 🌅", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Input file")
+        self._file.pack(fill="x", expand=True)
+
+        r2 = self._row()
+        self._fade_in = _LabeledEntry(r2, "Fade-in (s)", "0.0")
+        self._fade_in.pack(fill="x", expand=True)
+
+        r3 = self._row()
+        self._fade_out = _LabeledEntry(r3, "Fade-out (s)", "2.0")
+        self._fade_out.pack(fill="x", expand=True)
+
+        r4 = self._row()
+        self._out = _FileEntry(r4, "Output file (opt.)", mode="save")
+        self._out.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="🌅  Apply Fade", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an input file.", "error")
+            return
+        try:
+            fade_in = float(self._fade_in.value)
+            fade_out = float(self._fade_out.value)
+        except ValueError:
+            self._log("Fade durations must be numbers.", "error")
+            return
+        out = self._out.value or None
+        self._log(f"Adding fade to {path!r} (in={fade_in}s, out={fade_out}s) …", "info")
+        def task() -> None:
+            try:
+                from musicprod.tools.fade_effect import add_fade
+                result = add_fade(path, fade_in=fade_in, fade_out=fade_out, output_path=out)
+                self._log(f"Saved: {result}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+        self._run_in_thread(task)
+
+
+class _SilenceRemoverPanel(_ToolPanel):
+    title = "Silence Remover"
+    icon = "🤫"
+
+    def _build(self) -> None:
+        ttk.Label(self, text="Strip silent sections from an audio file 🤫", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Input file")
+        self._file.pack(fill="x", expand=True)
+
+        r2 = self._row()
+        self._min_sil = _LabeledEntry(r2, "Min silence (ms)", "500")
+        self._min_sil.pack(fill="x", expand=True)
+
+        r3 = self._row()
+        self._thresh = _LabeledEntry(r3, "Threshold (dBFS)", "-40.0")
+        self._thresh.pack(fill="x", expand=True)
+
+        r4 = self._row()
+        self._padding = _LabeledEntry(r4, "Padding (ms)", "100")
+        self._padding.pack(fill="x", expand=True)
+
+        r5 = self._row()
+        self._out = _FileEntry(r5, "Output file (opt.)", mode="save")
+        self._out.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="🤫  Remove Silence", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an input file.", "error")
+            return
+        try:
+            min_sil = int(self._min_sil.value)
+            thresh = float(self._thresh.value)
+            padding = int(self._padding.value)
+        except ValueError:
+            self._log("Min silence, threshold, and padding must be numbers.", "error")
+            return
+        out = self._out.value or None
+        self._log(f"Removing silence from {path!r} …", "info")
+        def task() -> None:
+            try:
+                from musicprod.tools.silence_remover import remove_silence
+                result = remove_silence(path, min_silence_len=min_sil,
+                                        silence_thresh=thresh, padding=padding, output_path=out)
+                self._log(f"Saved: {result}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+        self._run_in_thread(task)
+
+
+class _ChannelPanel(_ToolPanel):
+    title = "Channel Converter"
+    icon = "🎧"
+
+    def _build(self) -> None:
+        ttk.Label(self, text="Convert audio between stereo and mono 🎧", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Input file")
+        self._file.pack(fill="x", expand=True)
+
+        r2 = self._row()
+        ttk.Label(r2, text="Target channels", style="Muted.TLabel", width=18, anchor="w").pack(side="left")
+        self._channels = ttk.Combobox(r2, values=["1 (mono)", "2 (stereo)"], state="readonly", width=14)
+        self._channels.set("1 (mono)")
+        self._channels.pack(side="left")
+
+        r3 = self._row()
+        self._out = _FileEntry(r3, "Output file (opt.)", mode="save")
+        self._out.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="🎧  Convert", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an input file.", "error")
+            return
+        ch = 1 if self._channels.get().startswith("1") else 2
+        out = self._out.value or None
+        label = "mono" if ch == 1 else "stereo"
+        self._log(f"Converting {path!r} to {label} …", "info")
+        def task() -> None:
+            try:
+                from musicprod.tools.channel_converter import convert_channels
+                result = convert_channels(path, channels=ch, output_path=out)
+                self._log(f"Saved: {result}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+        self._run_in_thread(task)
+
+
+class _TempoPanel(_ToolPanel):
+    title = "Tempo Changer"
+    icon = "⏩"
+
+    def _build(self) -> None:
+        ttk.Label(self, text="Change playback speed without altering pitch ⏩", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Input file")
+        self._file.pack(fill="x", expand=True)
+
+        r2 = self._row()
+        self._rate = _LabeledEntry(r2, "Speed rate", "1.25")
+        self._rate.pack(fill="x", expand=True)
+
+        r3 = self._row()
+        self._out = _FileEntry(r3, "Output file (opt.)", mode="save")
+        self._out.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="⏩  Change Tempo", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an input file.", "error")
+            return
+        try:
+            rate = float(self._rate.value)
+        except ValueError:
+            self._log("Rate must be a number.", "error")
+            return
+        out = self._out.value or None
+        self._log(f"Changing tempo of {path!r} by {rate}× …", "info")
+        def task() -> None:
+            try:
+                from musicprod.tools.tempo_changer import change_tempo
+                result = change_tempo(path, rate=rate, output_path=out)
+                self._log(f"Saved: {result}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+        self._run_in_thread(task)
+
+
+class _ReverbPanel(_ToolPanel):
+    title = "Reverb Effect"
+    icon = "🏛️"
+
+    def _build(self) -> None:
+        ttk.Label(self, text="Add a reverb/room effect to an audio file 🏛️", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Input file")
+        self._file.pack(fill="x", expand=True)
+
+        r2 = self._row()
+        self._delay = _LabeledEntry(r2, "Delay (ms)", "80")
+        self._delay.pack(fill="x", expand=True)
+
+        r3 = self._row()
+        self._decay = _LabeledEntry(r3, "Decay (0–1)", "0.4")
+        self._decay.pack(fill="x", expand=True)
+
+        r4 = self._row()
+        self._reflections = _LabeledEntry(r4, "Reflections", "5")
+        self._reflections.pack(fill="x", expand=True)
+
+        r5 = self._row()
+        self._out = _FileEntry(r5, "Output file (opt.)", mode="save")
+        self._out.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="🏛️  Add Reverb", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an input file.", "error")
+            return
+        try:
+            delay = int(self._delay.value)
+            decay = float(self._decay.value)
+            reflections = int(self._reflections.value)
+        except ValueError:
+            self._log("Delay, decay, and reflections must be numbers.", "error")
+            return
+        out = self._out.value or None
+        self._log(f"Adding reverb to {path!r} …", "info")
+        def task() -> None:
+            try:
+                from musicprod.tools.reverb_effect import add_reverb
+                result = add_reverb(path, delay_ms=delay, decay=decay,
+                                    reflections=reflections, output_path=out)
+                self._log(f"Saved: {result}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+        self._run_in_thread(task)
+
+
+class _KeyDetectorPanel(_ToolPanel):
+    title = "Key Detector"
+    icon = "🗝️"
+
+    def _build(self) -> None:
+        ttk.Label(self, text="Detect the musical key of an audio file 🗝️", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Audio file")
+        self._file.pack(fill="x", expand=True)
+        ttk.Button(self, text="🗝️  Detect Key", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an audio file.", "error")
+            return
+        self._log(f"Analysing: {path}", "info")
+        def task() -> None:
+            try:
+                from musicprod.tools.key_detector import detect_key
+                key = detect_key(path)
+                self._log(f"Detected key: {key}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+        self._run_in_thread(task)
+
+
+class _VolumePanel(_ToolPanel):
+    title = "Volume Adjuster"
+    icon = "🔊"
+
+    def _build(self) -> None:
+        ttk.Label(self, text="Increase or decrease audio volume by dB 🔊", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Input file")
+        self._file.pack(fill="x", expand=True)
+
+        r2 = self._row()
+        self._db = _LabeledEntry(r2, "Volume (dB)", "6.0")
+        self._db.pack(fill="x", expand=True)
+
+        r3 = self._row()
+        self._out = _FileEntry(r3, "Output file (opt.)", mode="save")
+        self._out.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="🔊  Adjust Volume", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an input file.", "error")
+            return
+        try:
+            db = float(self._db.value)
+        except ValueError:
+            self._log("Volume must be a number.", "error")
+            return
+        out = self._out.value or None
+        self._log(f"Adjusting volume of {path!r} by {db:+.1f} dB …", "info")
+        def task() -> None:
+            try:
+                from musicprod.tools.volume_adjuster import adjust_volume
+                result = adjust_volume(path, db=db, output_path=out)
+                self._log(f"Saved: {result}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+        self._run_in_thread(task)
+
+
+class _CompressorPanel(_ToolPanel):
+    title = "Audio Compressor"
+    icon = "📦"
+
+    def _build(self) -> None:
+        ttk.Label(self, text="Apply dynamic range compression to audio 📦", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Input file")
+        self._file.pack(fill="x", expand=True)
+
+        r2 = self._row()
+        self._thresh = _LabeledEntry(r2, "Threshold (dBFS)", "-20.0")
+        self._thresh.pack(fill="x", expand=True)
+
+        r3 = self._row()
+        self._ratio = _LabeledEntry(r3, "Ratio (e.g. 4.0)", "4.0")
+        self._ratio.pack(fill="x", expand=True)
+
+        r4 = self._row()
+        self._attack = _LabeledEntry(r4, "Attack (ms)", "5.0")
+        self._attack.pack(fill="x", expand=True)
+
+        r5 = self._row()
+        self._release = _LabeledEntry(r5, "Release (ms)", "50.0")
+        self._release.pack(fill="x", expand=True)
+
+        r6 = self._row()
+        self._out = _FileEntry(r6, "Output file (opt.)", mode="save")
+        self._out.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="📦  Compress", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an input file.", "error")
+            return
+        try:
+            thresh = float(self._thresh.value)
+            ratio = float(self._ratio.value)
+            attack = float(self._attack.value)
+            release = float(self._release.value)
+        except ValueError:
+            self._log("All compression parameters must be numbers.", "error")
+            return
+        out = self._out.value or None
+        self._log(f"Compressing {path!r} (threshold={thresh} dBFS, ratio={ratio}:1) …", "info")
+        def task() -> None:
+            try:
+                from musicprod.tools.audio_compressor import compress_audio
+                result = compress_audio(path, threshold=thresh, ratio=ratio,
+                                        attack=attack, release=release, output_path=out)
+                self._log(f"Saved: {result}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+        self._run_in_thread(task)
+
+
+class _LoopPanel(_ToolPanel):
+    title = "Loop Creator"
+    icon = "🔁"
+
+    def _build(self) -> None:
+        ttk.Label(self, text="Repeat audio N times to create a loop 🔁", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Input file")
+        self._file.pack(fill="x", expand=True)
+
+        r2 = self._row()
+        self._count = _LabeledEntry(r2, "Repeat count", "4")
+        self._count.pack(fill="x", expand=True)
+
+        r3 = self._row()
+        self._xfade = _LabeledEntry(r3, "Crossfade (ms)", "0")
+        self._xfade.pack(fill="x", expand=True)
+
+        r4 = self._row()
+        self._out = _FileEntry(r4, "Output file (opt.)", mode="save")
+        self._out.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="🔁  Create Loop", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an input file.", "error")
+            return
+        try:
+            count = int(self._count.value)
+            xfade = int(self._xfade.value)
+        except ValueError:
+            self._log("Count and crossfade must be integers.", "error")
+            return
+        out = self._out.value or None
+        self._log(f"Creating {count}× loop of {path!r} …", "info")
+        def task() -> None:
+            try:
+                from musicprod.tools.loop_creator import create_loop
+                result = create_loop(path, count=count, crossfade=xfade, output_path=out)
+                self._log(f"Saved: {result}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+        self._run_in_thread(task)
+
+
 # ---------------------------------------------------------------------------
 # Main Hub window
 # ---------------------------------------------------------------------------
@@ -531,6 +988,16 @@ _PANELS: list[type[_ToolPanel]] = [
     _SplitPanel,
     _MergePanel,
     _WaveformPanel,
+    _NoiseReducerPanel,
+    _FadePanel,
+    _SilenceRemoverPanel,
+    _ChannelPanel,
+    _TempoPanel,
+    _ReverbPanel,
+    _KeyDetectorPanel,
+    _VolumePanel,
+    _CompressorPanel,
+    _LoopPanel,
 ]
 
 
@@ -624,7 +1091,7 @@ class MusicProdHub(tk.Tk):
         header.pack(fill="x", padx=0, pady=0)
         ttk.Label(header, text="🌸  MusicProd Hub  🌸", style="Title.TLabel",
                   padding=(20, 12, 0, 4)).pack(side="left")
-        ttk.Label(header, text="10 tools — one place ✨",
+        ttk.Label(header, text="20 tools — one place ✨",
                   style="Subtitle.TLabel", padding=(8, 12, 0, 4)).pack(side="left", anchor="s")
 
         ttk.Separator(self, orient="horizontal").pack(fill="x")
