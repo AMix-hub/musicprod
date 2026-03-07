@@ -974,6 +974,41 @@ class _LoopPanel(_ToolPanel):
 
 
 # ---------------------------------------------------------------------------
+# Update panel
+# ---------------------------------------------------------------------------
+
+class _UpdatePanel(_ToolPanel):
+    title = "Update"
+    icon = "🔃"
+
+    def _build(self) -> None:
+        ttk.Label(
+            self,
+            text="Update MusicProd to the latest version from main 🌸",
+            style="Muted.TLabel",
+        ).pack(anchor="w", padx=16, pady=(12, 8))
+
+        ttk.Button(
+            self, text="🔃  Check for Updates", command=self._run, style="Accent.TButton"
+        ).pack(pady=12)
+
+    def _run(self) -> None:
+        self._log("Checking for updates…", "info")
+
+        def task() -> None:
+            try:
+                from musicprod.tools.updater import self_update
+
+                method, message = self_update()
+                label = "git pull" if method == "git" else "pip upgrade"
+                self._log(f"[{label}] {message}", "success")
+            except Exception as exc:
+                self._log(f"Update failed: {exc}", "error")
+
+        self._run_in_thread(task)
+
+
+# ---------------------------------------------------------------------------
 # Main Hub window
 # ---------------------------------------------------------------------------
 
@@ -998,6 +1033,7 @@ _PANELS: list[type[_ToolPanel]] = [
     _VolumePanel,
     _CompressorPanel,
     _LoopPanel,
+    _UpdatePanel,
 ]
 
 
