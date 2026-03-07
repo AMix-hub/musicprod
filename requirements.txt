@@ -1,0 +1,5 @@
+yt-dlp>=2026.2.21
+pydub>=0.25.1
+librosa>=0.10.0
+mutagen>=1.47.0
+click>=8.1.0
