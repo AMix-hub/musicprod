@@ -9,18 +9,18 @@ from tkinter import filedialog, scrolledtext, ttk
 from typing import Callable
 
 # ---------------------------------------------------------------------------
-# Colour palette (dark, Spotify-inspired)
+# Colour palette (kawaii pink 🌸)
 # ---------------------------------------------------------------------------
-DARK_BG = "#1e1e2e"
-CARD_BG = "#2a2a3e"
-SIDEBAR_BG = "#181825"
-ACCENT = "#1DB954"
-ACCENT_HOVER = "#17a349"
-TEXT = "#cdd6f4"
-MUTED = "#6c7086"
-ERROR_COLOR = "#f38ba8"
-SUCCESS_COLOR = "#a6e3a1"
-ENTRY_BG = "#313244"
+DARK_BG = "#fff0f6"       # soft blush background
+CARD_BG = "#ffe4f0"       # light rose card
+SIDEBAR_BG = "#ffd6e8"    # pastel pink sidebar
+ACCENT = "#ff69b4"        # hot pink buttons
+ACCENT_HOVER = "#ff1493"  # deep pink on hover
+TEXT = "#5c1a3a"          # dark berry text
+MUTED = "#c0607a"         # muted rose
+ERROR_COLOR = "#e8004d"   # vivid red-pink
+SUCCESS_COLOR = "#c2185b" # deep pink success
+ENTRY_BG = "#ffcce4"      # pale pink inputs
 
 
 # ---------------------------------------------------------------------------
@@ -110,10 +110,10 @@ class _ToolPanel(ttk.Frame):
 
 class _YouTubePanel(_ToolPanel):
     title = "YouTube → MP3"
-    icon = "▶"
+    icon = "🎵"
 
     def _build(self) -> None:
-        ttk.Label(self, text="Download audio from YouTube as MP3", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        ttk.Label(self, text="Download audio from YouTube as MP3 ♪", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
         r1 = self._row()
         ttk.Label(r1, text="YouTube URL", style="Muted.TLabel", width=18, anchor="w").pack(side="left")
         self._url = tk.StringVar()
@@ -123,7 +123,7 @@ class _YouTubePanel(_ToolPanel):
         self._out = _FileEntry(r2, "Output file (.mp3)", mode="save", filetypes=[("MP3", "*.mp3"), ("All files", "*.*")])
         self._out.pack(fill="x", expand=True)
 
-        ttk.Button(self, text="⬇  Download", command=self._run, style="Accent.TButton").pack(pady=12)
+        ttk.Button(self, text="🎵  Download", command=self._run, style="Accent.TButton").pack(pady=12)
 
     def _run(self) -> None:
         url = self._url.get().strip()
@@ -144,14 +144,14 @@ class _YouTubePanel(_ToolPanel):
 
 class _BPMPanel(_ToolPanel):
     title = "BPM Detector"
-    icon = "♩"
+    icon = "🥁"
 
     def _build(self) -> None:
-        ttk.Label(self, text="Detect the tempo (BPM) of an audio file", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        ttk.Label(self, text="Detect the tempo (BPM) of an audio file 🎶", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
         r1 = self._row()
         self._file = _FileEntry(r1, "Audio file")
         self._file.pack(fill="x", expand=True)
-        ttk.Button(self, text="♩  Detect BPM", command=self._run, style="Accent.TButton").pack(pady=12)
+        ttk.Button(self, text="🥁  Detect BPM", command=self._run, style="Accent.TButton").pack(pady=12)
 
     def _run(self) -> None:
         path = self._file.value
@@ -171,10 +171,10 @@ class _BPMPanel(_ToolPanel):
 
 class _FormatPanel(_ToolPanel):
     title = "Format Converter"
-    icon = "⇄"
+    icon = "🔄"
 
     def _build(self) -> None:
-        ttk.Label(self, text="Convert audio between formats (MP3, WAV, FLAC, OGG …)", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        ttk.Label(self, text="Convert audio between formats (MP3, WAV, FLAC, OGG …) ✨", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
         r1 = self._row()
         self._file = _FileEntry(r1, "Input file")
         self._file.pack(fill="x", expand=True)
@@ -189,7 +189,7 @@ class _FormatPanel(_ToolPanel):
         self._out = _FileEntry(r3, "Output file (opt.)", mode="save")
         self._out.pack(fill="x", expand=True)
 
-        ttk.Button(self, text="⇄  Convert", command=self._run, style="Accent.TButton").pack(pady=12)
+        ttk.Button(self, text="🔄  Convert", command=self._run, style="Accent.TButton").pack(pady=12)
 
     def _run(self) -> None:
         path = self._file.value
@@ -211,10 +211,10 @@ class _FormatPanel(_ToolPanel):
 
 class _TrimPanel(_ToolPanel):
     title = "Audio Trimmer"
-    icon = "✂"
+    icon = "✂️"
 
     def _build(self) -> None:
-        ttk.Label(self, text="Trim an audio file to a start/end timestamp", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        ttk.Label(self, text="Trim an audio file to a start/end timestamp 🎀", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
         r1 = self._row()
         self._file = _FileEntry(r1, "Input file")
         self._file.pack(fill="x", expand=True)
@@ -231,7 +231,7 @@ class _TrimPanel(_ToolPanel):
         self._out = _FileEntry(r4, "Output file (opt.)", mode="save")
         self._out.pack(fill="x", expand=True)
 
-        ttk.Button(self, text="✂  Trim", command=self._run, style="Accent.TButton").pack(pady=12)
+        ttk.Button(self, text="✂️  Trim", command=self._run, style="Accent.TButton").pack(pady=12)
 
     def _run(self) -> None:
         path = self._file.value
@@ -254,10 +254,10 @@ class _TrimPanel(_ToolPanel):
 
 class _MetadataPanel(_ToolPanel):
     title = "Metadata Editor"
-    icon = "🏷"
+    icon = "🏷️"
 
     def _build(self) -> None:
-        ttk.Label(self, text="View or edit audio file metadata tags", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        ttk.Label(self, text="View or edit audio file metadata tags 🌸", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
         r1 = self._row()
         self._file = _FileEntry(r1, "Audio file")
         self._file.pack(fill="x", expand=True)
@@ -265,7 +265,6 @@ class _MetadataPanel(_ToolPanel):
         btn_row = ttk.Frame(self, style="Card.TFrame")
         btn_row.pack(padx=16, pady=(0, 8))
         ttk.Button(btn_row, text="🔍  Read Tags", command=self._read, style="Accent.TButton").pack(side="left", padx=(0, 8))
-
         tags = ["title", "artist", "album", "albumartist", "genre", "date", "tracknumber", "comment"]
         self._tag_vars: dict[str, _LabeledEntry] = {}
         for tag in tags:
@@ -310,10 +309,10 @@ class _MetadataPanel(_ToolPanel):
 
 class _NormalizePanel(_ToolPanel):
     title = "Audio Normalizer"
-    icon = "◈"
+    icon = "🌈"
 
     def _build(self) -> None:
-        ttk.Label(self, text="Normalize audio loudness to a target dBFS level", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        ttk.Label(self, text="Normalize audio loudness to a target dBFS level ✨", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
         r1 = self._row()
         self._file = _FileEntry(r1, "Input file")
         self._file.pack(fill="x", expand=True)
@@ -326,7 +325,7 @@ class _NormalizePanel(_ToolPanel):
         self._out = _FileEntry(r3, "Output file (opt.)", mode="save")
         self._out.pack(fill="x", expand=True)
 
-        ttk.Button(self, text="◈  Normalize", command=self._run, style="Accent.TButton").pack(pady=12)
+        ttk.Button(self, text="🌈  Normalize", command=self._run, style="Accent.TButton").pack(pady=12)
 
     def _run(self) -> None:
         path = self._file.value
@@ -352,10 +351,10 @@ class _NormalizePanel(_ToolPanel):
 
 class _PitchPanel(_ToolPanel):
     title = "Pitch Shifter"
-    icon = "♫"
+    icon = "🎹"
 
     def _build(self) -> None:
-        ttk.Label(self, text="Shift the pitch of an audio file by semitones", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        ttk.Label(self, text="Shift the pitch of an audio file by semitones 🎶", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
         r1 = self._row()
         self._file = _FileEntry(r1, "Input file")
         self._file.pack(fill="x", expand=True)
@@ -368,7 +367,7 @@ class _PitchPanel(_ToolPanel):
         self._out = _FileEntry(r3, "Output file (opt.)", mode="save")
         self._out.pack(fill="x", expand=True)
 
-        ttk.Button(self, text="♫  Shift Pitch", command=self._run, style="Accent.TButton").pack(pady=12)
+        ttk.Button(self, text="🎹  Shift Pitch", command=self._run, style="Accent.TButton").pack(pady=12)
 
     def _run(self) -> None:
         path = self._file.value
@@ -394,10 +393,10 @@ class _PitchPanel(_ToolPanel):
 
 class _SplitPanel(_ToolPanel):
     title = "Audio Splitter"
-    icon = "⊞"
+    icon = "🍰"
 
     def _build(self) -> None:
-        ttk.Label(self, text="Split an audio file into equal-duration chunks", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        ttk.Label(self, text="Split an audio file into equal-duration chunks 🍰", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
         r1 = self._row()
         self._file = _FileEntry(r1, "Input file")
         self._file.pack(fill="x", expand=True)
@@ -410,7 +409,7 @@ class _SplitPanel(_ToolPanel):
         self._outdir = _FileEntry(r3, "Output dir (opt.)", mode="dir")
         self._outdir.pack(fill="x", expand=True)
 
-        ttk.Button(self, text="⊞  Split", command=self._run, style="Accent.TButton").pack(pady=12)
+        ttk.Button(self, text="🍰  Split", command=self._run, style="Accent.TButton").pack(pady=12)
 
     def _run(self) -> None:
         path = self._file.value
@@ -438,14 +437,14 @@ class _SplitPanel(_ToolPanel):
 
 class _MergePanel(_ToolPanel):
     title = "Audio Merger"
-    icon = "⊕"
+    icon = "💞"
 
     def __init__(self, master: tk.Widget, log: Callable[[str, str], None]) -> None:
         self._file_entries: list[_FileEntry] = []
         super().__init__(master, log)
 
     def _build(self) -> None:
-        ttk.Label(self, text="Merge/concatenate multiple audio files into one", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        ttk.Label(self, text="Merge/concatenate multiple audio files into one 💞", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
 
         self._files_frame = ttk.Frame(self, style="Card.TFrame")
         self._files_frame.pack(fill="x", padx=16)
@@ -456,12 +455,11 @@ class _MergePanel(_ToolPanel):
         btn_row = ttk.Frame(self, style="Card.TFrame")
         btn_row.pack(padx=16, pady=(4, 8))
         ttk.Button(btn_row, text="+ Add file", command=self._add_file_row, style="Small.TButton").pack(side="left", padx=(0, 8))
-
         r_out = self._row()
         self._out = _FileEntry(r_out, "Output file (opt.)", mode="save")
         self._out.pack(fill="x", expand=True)
 
-        ttk.Button(self, text="⊕  Merge", command=self._run, style="Accent.TButton").pack(pady=12)
+        ttk.Button(self, text="💞  Merge", command=self._run, style="Accent.TButton").pack(pady=12)
 
     def _add_file_row(self) -> None:
         fe = _FileEntry(self._files_frame, f"File {len(self._file_entries) + 1}")
@@ -487,10 +485,10 @@ class _MergePanel(_ToolPanel):
 
 class _WaveformPanel(_ToolPanel):
     title = "Waveform Plotter"
-    icon = "〜"
+    icon = "🌊"
 
     def _build(self) -> None:
-        ttk.Label(self, text="Generate a waveform PNG image of an audio file", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
+        ttk.Label(self, text="Generate a waveform PNG image of an audio file 🌊", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
         r1 = self._row()
         self._file = _FileEntry(r1, "Input file")
         self._file.pack(fill="x", expand=True)
@@ -499,7 +497,7 @@ class _WaveformPanel(_ToolPanel):
         self._out = _FileEntry(r2, "Output PNG (opt.)", mode="save", filetypes=[("PNG image", "*.png"), ("All files", "*.*")])
         self._out.pack(fill="x", expand=True)
 
-        ttk.Button(self, text="〜  Plot Waveform", command=self._run, style="Accent.TButton").pack(pady=12)
+        ttk.Button(self, text="🌊  Plot Waveform", command=self._run, style="Accent.TButton").pack(pady=12)
 
     def _run(self) -> None:
         path = self._file.value
@@ -565,29 +563,34 @@ class MusicProdHub(tk.Tk):
         style.configure("TLabel", background=DARK_BG, foreground=TEXT)
         style.configure("Card.TLabel", background=CARD_BG, foreground=TEXT)
         style.configure("Muted.TLabel", background=CARD_BG, foreground=MUTED)
-        style.configure("Header.TLabel", background=SIDEBAR_BG, foreground=TEXT, font=("Segoe UI", 12, "bold"))
-        style.configure("Title.TLabel", background=DARK_BG, foreground=TEXT, font=("Segoe UI", 16, "bold"))
-        style.configure("Subtitle.TLabel", background=DARK_BG, foreground=MUTED, font=("Segoe UI", 9))
+        style.configure("Header.TLabel", background=SIDEBAR_BG, foreground=ACCENT,
+                        font=("Segoe UI", 11, "bold"))
+        style.configure("Title.TLabel", background=DARK_BG, foreground=ACCENT,
+                        font=("Segoe UI", 17, "bold"))
+        style.configure("Subtitle.TLabel", background=DARK_BG, foreground=MUTED,
+                        font=("Segoe UI", 9))
 
         style.configure("Accent.TButton",
-                        background=ACCENT, foreground="#000000",
+                        background=ACCENT, foreground="#ffffff",
                         font=("Segoe UI", 10, "bold"),
-                        padding=(10, 5), borderwidth=0)
+                        padding=(12, 6), borderwidth=0, relief="flat")
         style.map("Accent.TButton",
                   background=[("active", ACCENT_HOVER)],
-                  foreground=[("active", "#000000")])
+                  foreground=[("active", "#ffffff")])
 
         style.configure("Small.TButton",
                         background=ENTRY_BG, foreground=TEXT,
                         font=("Segoe UI", 9), padding=(6, 3), borderwidth=0)
-        style.map("Small.TButton", background=[("active", "#44475a")])
+        style.map("Small.TButton",
+                  background=[("active", ACCENT)],
+                  foreground=[("active", "#ffffff")])
 
         style.configure("SidebarTool.TButton",
                         background=SIDEBAR_BG, foreground=TEXT,
                         anchor="w", font=("Segoe UI", 10),
                         padding=(12, 8), borderwidth=0, relief="flat")
         style.map("SidebarTool.TButton",
-                  background=[("active", CARD_BG), ("selected", CARD_BG)],
+                  background=[("active", CARD_BG)],
                   foreground=[("active", ACCENT)])
 
         style.configure("ActiveSidebarTool.TButton",
@@ -598,15 +601,18 @@ class MusicProdHub(tk.Tk):
         style.configure("Dark.TEntry",
                         fieldbackground=ENTRY_BG, foreground=TEXT,
                         insertcolor=TEXT, borderwidth=0, padding=5)
-        style.map("Dark.TEntry", fieldbackground=[("focus", "#3d3f5a")])
+        style.map("Dark.TEntry", fieldbackground=[("focus", "#ffc0d9")])
 
         style.configure("TCombobox",
                         fieldbackground=ENTRY_BG, foreground=TEXT,
-                        background=ENTRY_BG, arrowcolor=TEXT,
-                        selectbackground=ACCENT, selectforeground="#000000")
+                        background=ENTRY_BG, arrowcolor=ACCENT,
+                        selectbackground=ACCENT, selectforeground="#ffffff")
         self.option_add("*TCombobox*Listbox.background", CARD_BG)
         self.option_add("*TCombobox*Listbox.foreground", TEXT)
         self.option_add("*TCombobox*Listbox.selectBackground", ACCENT)
+
+        # Separator colour
+        style.configure("TSeparator", background="#ffadd4")
 
     # ------------------------------------------------------------------
     # Layout
@@ -616,9 +622,9 @@ class MusicProdHub(tk.Tk):
         # ── Header ──────────────────────────────────────────────────────
         header = ttk.Frame(self)
         header.pack(fill="x", padx=0, pady=0)
-        ttk.Label(header, text="🎵  MusicProd Hub", style="Title.TLabel",
+        ttk.Label(header, text="🌸  MusicProd Hub  🌸", style="Title.TLabel",
                   padding=(20, 12, 0, 4)).pack(side="left")
-        ttk.Label(header, text="10 tools — one place",
+        ttk.Label(header, text="10 tools — one place ✨",
                   style="Subtitle.TLabel", padding=(8, 12, 0, 4)).pack(side="left", anchor="s")
 
         ttk.Separator(self, orient="horizontal").pack(fill="x")
@@ -632,7 +638,7 @@ class MusicProdHub(tk.Tk):
         sidebar.pack(side="left", fill="y")
         sidebar.pack_propagate(False)
 
-        ttk.Label(sidebar, text="TOOLS", style="Header.TLabel",
+        ttk.Label(sidebar, text="🎀 TOOLS 🎀", style="Header.TLabel",
                   padding=(12, 10, 0, 4)).pack(anchor="w")
 
         self._sidebar_buttons: list[ttk.Button] = []
@@ -656,11 +662,11 @@ class MusicProdHub(tk.Tk):
         ttk.Separator(self, orient="horizontal").pack(fill="x")
         log_frame = ttk.Frame(self)
         log_frame.pack(fill="x")
-        ttk.Label(log_frame, text="Output", style="Muted.TLabel",
+        ttk.Label(log_frame, text="✨ Output", style="Muted.TLabel",
                   padding=(8, 4, 0, 0)).pack(anchor="w")
         self._log_box = scrolledtext.ScrolledText(
             log_frame, height=6, wrap="word",
-            bg=SIDEBAR_BG, fg=TEXT, insertbackground=TEXT,
+            bg=SIDEBAR_BG, fg=TEXT, insertbackground=ACCENT,
             font=("Courier New", 9), relief="flat", bd=0,
         )
         self._log_box.pack(fill="x", padx=8, pady=(0, 8))
