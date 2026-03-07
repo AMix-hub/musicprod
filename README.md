@@ -16,6 +16,76 @@ We work through these tools one by one — each solves a concrete problem in the
 
 ---
 
+## Quick Start
+
+Follow these steps to go from a fresh clone to running commands in under five minutes.
+
+### 1. Install FFmpeg
+
+FFmpeg is required by the format-converter and audio-trimmer tools.
+
+```bash
+# macOS (Homebrew)
+brew install ffmpeg
+
+# Ubuntu / Debian
+sudo apt-get update && sudo apt-get install -y ffmpeg
+
+# Windows (Chocolatey)
+choco install ffmpeg
+```
+
+> Confirm it works: `ffmpeg -version`
+
+### 2. Create and activate a virtual environment
+
+```bash
+python -m venv .venv
+
+# macOS / Linux
+source .venv/bin/activate
+
+# Windows
+.venv\Scripts\activate
+```
+
+### 3. Install musicprod with dev dependencies
+
+```bash
+pip install -e ".[dev]"
+```
+
+### 4. Verify the installation
+
+```bash
+musicprod --help
+```
+
+You should see the five tools listed:
+
+```
+Usage: musicprod [OPTIONS] COMMAND [ARGS]...
+
+  MusicProd — music production tools.
+
+  Top 5 tools:
+    1. youtube-to-mp3   Download audio from YouTube as MP3
+    2. detect-bpm       Detect the BPM/tempo of an audio file
+    3. convert-format   Convert audio between formats
+    4. trim-audio       Trim an audio file to start/end timestamps
+    5. edit-metadata    View or edit audio file metadata tags
+```
+
+### 5. Run the test suite
+
+```bash
+pytest -v
+```
+
+All tests run without needing real audio files or a live internet connection — everything is mocked.
+
+---
+
 ## Requirements
 
 - Python 3.9+
@@ -83,9 +153,21 @@ musicprod edit-metadata set path/to/file.mp3 --title "My Song" --artist "DJ Exam
 ## Running the Tests
 
 ```bash
+# Install with dev dependencies (if you haven't already)
 pip install -e ".[dev]"
-pytest
+
+# Run all tests with verbose output
+pytest -v
+
+# Run tests for a single tool
+pytest tests/test_youtube_to_mp3.py -v
+pytest tests/test_bpm_detector.py -v
+pytest tests/test_format_converter.py -v
+pytest tests/test_audio_trimmer.py -v
+pytest tests/test_metadata_editor.py -v
 ```
+
+Tests run without a real internet connection or audio files — all external calls are mocked.
 
 ## Project Structure
 
