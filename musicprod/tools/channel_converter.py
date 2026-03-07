@@ -64,6 +64,11 @@ def convert_channels(
     else:
         dest = src.with_name(f"{src.stem}_{suffix}{src.suffix}")
 
+    # Ensure the destination always has a file extension so the exported
+    # file is recognisable (e.g. song_mono.mp3, not just song_mono).
+    if not dest.suffix:
+        dest = dest.with_suffix(src.suffix or ".mp3")
+
     try:
         fmt = dest.suffix.lstrip(".") or "mp3"
         converted.export(str(dest), format=fmt)

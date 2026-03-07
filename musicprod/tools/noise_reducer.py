@@ -62,6 +62,13 @@ def reduce_noise(
     else:
         dest = src.with_name(f"{src.stem}_denoised{src.suffix}")
 
+    # soundfile infers the output format from the extension.
+    # Ensure the destination always has a supported extension; fall back
+    # to .wav when the source has no extension or an unsupported one (e.g. .mp3).
+    _SF_WRITE_FORMATS = {".wav", ".flac", ".ogg", ".aiff", ".aif"}
+    if not dest.suffix or dest.suffix.lower() not in _SF_WRITE_FORMATS:
+        dest = dest.with_suffix(".wav")
+
     try:
         y, sr = librosa.load(str(src), sr=None, mono=False)
 

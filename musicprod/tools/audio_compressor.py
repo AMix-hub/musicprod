@@ -87,6 +87,11 @@ def compress_audio(
     else:
         dest = src.with_name(f"{src.stem}_compressed{src.suffix}")
 
+    # Ensure the destination always has a file extension so the exported
+    # file is recognisable (e.g. song_compressed.mp3, not just song_compressed).
+    if not dest.suffix:
+        dest = dest.with_suffix(src.suffix or ".mp3")
+
     try:
         fmt = dest.suffix.lstrip(".") or "mp3"
         compressed.export(str(dest), format=fmt)

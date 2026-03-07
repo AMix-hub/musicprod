@@ -79,6 +79,11 @@ def add_fade(
     else:
         dest = src.with_name(f"{src.stem}_faded{src.suffix}")
 
+    # Ensure the destination always has a file extension so the exported
+    # file is recognisable (e.g. song_faded.mp3, not just song_faded).
+    if not dest.suffix:
+        dest = dest.with_suffix(src.suffix or ".mp3")
+
     try:
         fmt = dest.suffix.lstrip(".") or "mp3"
         audio.export(str(dest), format=fmt)

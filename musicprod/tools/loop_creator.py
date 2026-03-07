@@ -80,6 +80,11 @@ def create_loop(
     else:
         dest = src.with_name(f"{src.stem}_loop{src.suffix}")
 
+    # Ensure the destination always has a file extension so the exported
+    # file is recognisable (e.g. song_loop.mp3, not just song_loop).
+    if not dest.suffix:
+        dest = dest.with_suffix(src.suffix or ".mp3")
+
     try:
         fmt = dest.suffix.lstrip(".") or "mp3"
         result.export(str(dest), format=fmt)

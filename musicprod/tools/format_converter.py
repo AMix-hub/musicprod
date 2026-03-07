@@ -59,6 +59,11 @@ def convert_format(
     else:
         dest = src.with_suffix(f".{fmt}")
 
+    # Ensure the destination always has a file extension so the exported
+    # file is recognisable (e.g. song.mp3, not just song).
+    if not dest.suffix:
+        dest = dest.with_suffix(f".{fmt}")
+
     try:
         audio = AudioSegment.from_file(str(src))
         audio.export(str(dest), format=fmt)

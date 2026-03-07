@@ -52,6 +52,11 @@ def shift_pitch(
     else:
         dest = src.with_name(f"{src.stem}_pitched{src.suffix}")
 
+    # Ensure the destination always has a file extension so the exported
+    # file is recognisable (e.g. song_pitched.mp3, not just song_pitched).
+    if not dest.suffix:
+        dest = dest.with_suffix(src.suffix or ".mp3")
+
     try:
         y, sr = librosa.load(str(src), sr=None, mono=True)
         shifted = librosa.effects.pitch_shift(y=y, sr=sr, n_steps=semitones)

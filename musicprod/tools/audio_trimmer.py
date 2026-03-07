@@ -102,6 +102,11 @@ def trim_audio(
     else:
         dest = src.with_name(f"{src.stem}_trimmed{src.suffix}")
 
+    # Ensure the destination always has a file extension so the exported
+    # file is recognisable (e.g. song_trimmed.mp3, not just song_trimmed).
+    if not dest.suffix:
+        dest = dest.with_suffix(src.suffix or ".mp3")
+
     try:
         fmt = dest.suffix.lstrip(".") or "mp3"
         trimmed.export(str(dest), format=fmt)
