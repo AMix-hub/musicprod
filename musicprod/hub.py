@@ -90,11 +90,63 @@ class _ToolPanel(ttk.Frame):
 
     title: str = ""
     icon: str = ""
+    help_text: str = ""
 
     def __init__(self, master: tk.Widget, log: Callable[[str, str], None]) -> None:
         super().__init__(master, style="Card.TFrame")
         self._log = log
         self._build()
+        if self.help_text:
+            btn = ttk.Button(self, text="❓  Help", command=self._show_help, style="Small.TButton")
+            btn.place(relx=1.0, y=8, anchor="ne", x=-8)
+
+    def _show_help(self) -> None:
+        """Open a help window for this tool."""
+        win = tk.Toplevel(self)
+        win.title(f"Help — {self.title}")
+        win.geometry("540x460")
+        win.configure(bg=DARK_BG)
+        win.resizable(True, True)
+        win.grab_set()
+
+        ttk.Label(
+            win,
+            text=f"{self.icon}  {self.title}",
+            style="Title.TLabel",
+            padding=(16, 12, 0, 4),
+        ).pack(anchor="w")
+        ttk.Separator(win, orient="horizontal").pack(fill="x", pady=(0, 8))
+
+        txt = scrolledtext.ScrolledText(
+            win,
+            wrap="word",
+            bg=CARD_BG,
+            fg=TEXT,
+            font=("Segoe UI", 10),
+            relief="flat",
+            bd=0,
+            padx=12,
+            pady=8,
+        )
+        txt.pack(fill="both", expand=True, padx=12, pady=(0, 4))
+        txt.tag_configure("heading", foreground=ACCENT, font=("Segoe UI", 10, "bold"))
+        txt.tag_configure("bullet", lmargin1=8, lmargin2=20)
+        for line in self.help_text.splitlines(keepends=True):
+            stripped = line.rstrip()
+            is_heading = (
+                stripped
+                and any(c.isalpha() for c in stripped)
+                and (stripped == stripped.upper() or stripped.startswith("─"))
+            )
+            if is_heading:
+                txt.insert("end", line, "heading")
+            elif stripped.startswith("•"):
+                txt.insert("end", line, "bullet")
+            else:
+                txt.insert("end", line)
+        txt.configure(state="disabled")
+
+        ttk.Button(win, text="Close", command=win.destroy, style="Small.TButton").pack(pady=(0, 12))
 
     def _build(self) -> None:
         raise NotImplementedError
@@ -111,6 +163,28 @@ class _ToolPanel(ttk.Frame):
 class _YouTubePanel(_ToolPanel):
     title = "YouTube → MP3"
     icon = "🎵"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Downloads audio from a YouTube video and saves it as an MP3 file.
+Requires an active internet connection and yt-dlp.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• YouTube URL — The full URL of the YouTube video
+  (e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ).
+• Output file (.mp3) — Where to save the resulting MP3. Leave blank
+  to save in the current working directory using the video title.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Paste the URL directly from your browser's address bar.
+• Age-restricted or private videos cannot be downloaded.
+• Leaving the output path blank lets yt-dlp derive a clean filename
+  from the video title automatically.
+• Downloaded audio is encoded at 192 kbps by default.
+• Works with YouTube Shorts URLs as well as standard watch URLs.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Download audio from YouTube as MP3 ♪", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -145,6 +219,31 @@ class _YouTubePanel(_ToolPanel):
 class _BPMPanel(_ToolPanel):
     title = "BPM Detector"
     icon = "🥁"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Analyses an audio file and estimates its Beats Per Minute (BPM) —
+the tempo or speed of the music.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Audio file — Any common audio format (MP3, WAV, FLAC, OGG …).
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• BPM detection works best on rhythmically clear material (drums,
+  percussion, electronic music). Results may be less accurate for
+  ambient, classical, or rubato recordings.
+• Common BPM ranges by genre:
+    60–80    Ballad / Slow
+    80–110   Pop / R&B
+   110–130   House / Hip-Hop
+   128–145   EDM / Techno
+   160–180   Drum & Bass / Hardcore
+• If the result seems halved or doubled, try multiplying or dividing
+  by 2 — tempo ambiguity is common in automated detection.
+• For best accuracy, use a lossless format (WAV or FLAC).
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Detect the tempo (BPM) of an audio file 🎶", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -172,6 +271,32 @@ class _BPMPanel(_ToolPanel):
 class _FormatPanel(_ToolPanel):
     title = "Format Converter"
     icon = "🔄"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Converts an audio file from one format to another.
+Supported formats: MP3, WAV, FLAC, OGG, AAC, M4A, OPUS.
+Requires FFmpeg to be installed on your system.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The source audio file to convert.
+• Target format — The output format to convert to.
+• Output file (opt.) — Where to save the converted file. Leave blank
+  to save next to the input file with the new extension.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• WAV and FLAC are lossless (no quality loss, larger file size).
+  Use these for mastering, editing, or archiving.
+• MP3 and OGG are lossy (smaller file size, slight quality loss).
+  Use these for streaming and general playback.
+• OPUS offers excellent quality at very low bitrates — great for
+  podcasts and voice recordings.
+• AAC / M4A is the standard format for Apple devices and iTunes.
+• Converting between two lossy formats (e.g. MP3 → OGG) introduces
+  generation loss — convert from a lossless source whenever possible.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Convert audio between formats (MP3, WAV, FLAC, OGG …) ✨", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -212,6 +337,32 @@ class _FormatPanel(_ToolPanel):
 class _TrimPanel(_ToolPanel):
     title = "Audio Trimmer"
     icon = "✂️"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Trims an audio file to the specified start and end timestamps, keeping
+only the audio between those two points.
+Requires FFmpeg to be installed on your system.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The source audio file to trim.
+• Start time — The point in the audio to start keeping.
+  Accepted formats: M:SS, MM:SS, H:MM:SS, or plain seconds (e.g. 90).
+• End time — The point at which to stop (exclusive).
+  Same format as Start time.
+• Output file (opt.) — Where to save the trimmed file. Leave blank to
+  auto-generate a name next to the input file.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• To trim from the beginning: set Start time to 0:00.
+• To trim to a specific duration rather than an end point, calculate
+  end = start + desired_duration in seconds.
+• Trimming a lossless format (WAV, FLAC) preserves full quality.
+• To make multiple clips from one file, use the Audio Splitter tool.
+• Use the Waveform Plotter first to visually identify exact timestamps.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Trim an audio file to a start/end timestamp 🎀", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -255,6 +406,36 @@ class _TrimPanel(_ToolPanel):
 class _MetadataPanel(_ToolPanel):
     title = "Metadata Editor"
     icon = "🏷️"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Reads and writes ID3 / Vorbis Comment metadata tags embedded in an
+audio file (title, artist, album, genre, and more).
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Audio file — The file whose tags you want to read or edit.
+• Title — The name of the track.
+• Artist — The performing artist or band.
+• Album — The album the track belongs to.
+• Albumartist — The main artist for the entire album (useful when
+  compilations have per-track artists).
+• Genre — Musical genre (e.g. Pop, Rock, Electronic).
+• Date — Release year or full date (e.g. 2024 or 2024-06-15).
+• Tracknumber — Position in the album (e.g. 1 or 1/12).
+• Comment — Free-form notes or additional information.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Click "Read Tags" first to load any existing metadata into the
+  fields before editing, to avoid overwriting information.
+• Leave a field blank to clear that tag when saving.
+• ID3 tags are supported in MP3; Vorbis Comments in FLAC/OGG.
+• Proper metadata helps music players, DJ software, and streaming
+  platforms display and organise your tracks correctly.
+• For compilations set Albumartist to "Various Artists" so the
+  whole album groups together in most music libraries.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="View or edit audio file metadata tags 🌸", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -310,6 +491,34 @@ class _MetadataPanel(_ToolPanel):
 class _NormalizePanel(_ToolPanel):
     title = "Audio Normalizer"
     icon = "🌈"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Adjusts the overall volume of an audio file so its peak loudness
+reaches the specified dBFS (decibels relative to Full Scale) level.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The audio file to normalize.
+• Target dBFS — The desired peak level. Must be a negative number or
+  zero (0.0 = maximum possible without clipping).
+• Output file (opt.) — Where to save the normalized file.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• dBFS is always ≤ 0. A value of 0.0 is the absolute loudest a
+  digital signal can go without clipping.
+• Recommended target levels:
+    -14.0  Streaming platforms (Spotify, YouTube Music)
+     -9.0  Broadcast / TV
+     -6.0  Headroom for further mixing / mastering
+     -1.0  Final master just before distribution
+• Normalization raises or lowers the entire file uniformly — it does
+  not compress dynamic range. For dynamic control use the
+  Audio Compressor tool.
+• Normalize to -14.0 dBFS before uploading to Spotify or Apple Music
+  to match their loudness targets (they will turn down louder tracks).
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Normalize audio loudness to a target dBFS level ✨", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -352,6 +561,33 @@ class _NormalizePanel(_ToolPanel):
 class _PitchPanel(_ToolPanel):
     title = "Pitch Shifter"
     icon = "🎹"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Shifts the pitch of an audio file up or down by a given number of
+semitones without changing its playback speed.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The audio file to pitch-shift.
+• Semitones — How many semitones to shift.
+  Positive values = pitch up (higher).
+  Negative values = pitch down (lower).
+• Output file (opt.) — Where to save the result.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• 1 semitone = one piano key. 12 semitones = one full octave.
+• Common creative uses:
+    +2  Slightly brighter, more energetic feel
+    -2  Darker, more mellow feel
+   +12  One octave up (e.g. turn bass into mid-range)
+   -12  One octave down
+• Fractional semitones are supported (e.g. 0.5 for fine-tuning).
+• Large shifts (> ±6 semitones) may introduce audible artefacts.
+• To change speed without changing pitch, use the Tempo Changer tool.
+• To detect what key the audio is already in, use the Key Detector.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Shift the pitch of an audio file by semitones 🎶", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -394,6 +630,33 @@ class _PitchPanel(_ToolPanel):
 class _SplitPanel(_ToolPanel):
     title = "Audio Splitter"
     icon = "🍰"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Splits an audio file into equal-length chunks of a specified duration.
+Useful for dividing long recordings, podcasts, or albums into segments.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The audio file to split.
+• Chunk duration (s) — Length of each chunk in seconds. The last
+  chunk will be shorter if the total duration is not evenly divisible.
+• Output dir (opt.) — Folder where chunks will be saved. Leave blank
+  to save in the same directory as the input file.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Chunks are named automatically: <original_name>_part001.ext,
+  <original_name>_part002.ext, and so on.
+• For splitting by silence rather than fixed duration, see the
+  Silence Remover tool.
+• Common chunk durations:
+    30 s   Social media clips / sample previews
+    60 s   Short podcast segments
+   300 s   Podcast chapters (5 min)
+  1800 s   Broadcast-safe segments (30 min)
+• Splitting does not re-encode the audio — quality is preserved.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Split an audio file into equal-duration chunks 🍰", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -438,6 +701,32 @@ class _SplitPanel(_ToolPanel):
 class _MergePanel(_ToolPanel):
     title = "Audio Merger"
     icon = "💞"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Concatenates two or more audio files end-to-end into a single file.
+Useful for joining podcast segments, album tracks, or samples.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• File 1, File 2, … — The source audio files to join.
+  Files are merged in the order they appear. Use "+ Add file" to
+  include more than two inputs.
+• Output file (opt.) — Where to save the merged file. Leave blank to
+  auto-generate a filename next to the first input file.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• The order of files matters — they are joined top-to-bottom as
+  listed in the UI.
+• For the best results all input files should have the same sample
+  rate, channel count, and format. Mismatched files will be
+  re-encoded to match the first file's properties.
+• To add a smooth transition between clips, apply the Fade Effect to
+  each segment (fade out the end, fade in the start) before merging.
+• Use the Loop Creator tool if you want to repeat a single file
+  multiple times instead of merging different files.
+"""
 
     def __init__(self, master: tk.Widget, log: Callable[[str, str], None]) -> None:
         self._file_entries: list[_FileEntry] = []
@@ -486,6 +775,31 @@ class _MergePanel(_ToolPanel):
 class _WaveformPanel(_ToolPanel):
     title = "Waveform Plotter"
     icon = "🌊"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Generates a waveform image (PNG) that visualises the amplitude of an
+audio file over time. Useful for reviewing dynamics at a glance.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The audio file to visualise.
+• Output PNG (opt.) — Where to save the image. Leave blank to save
+  next to the input file with a .png extension.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• The horizontal axis represents time; the vertical axis represents
+  amplitude (loudness). Taller peaks = louder moments.
+• A flat-topped waveform ("brickwall") indicates heavy limiting or
+  clipping — the audio may sound distorted.
+• A lot of empty space (very low amplitude) may indicate silence or
+  noise that can be removed with the Silence Remover tool.
+• Use the waveform image to identify precise trim points before
+  using the Audio Trimmer tool.
+• The image can be embedded in documentation, podcast show notes, or
+  used as album artwork / social media previews.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Generate a waveform PNG image of an audio file 🌊", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -519,6 +833,35 @@ class _WaveformPanel(_ToolPanel):
 class _NoiseReducerPanel(_ToolPanel):
     title = "Noise Reducer"
     icon = "🔇"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Reduces steady background noise (hiss, hum, room noise, fan noise)
+from an audio file using spectral subtraction.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The audio file to clean up.
+• Noise duration (s) — Length (in seconds) of a section at the START
+  of the file that contains only background noise (no speech/music).
+  This "noise profile" is used to identify what to remove.
+• Strength (0–3) — How aggressively to suppress the noise.
+  0.0 = no reduction. 1.0 = standard. Higher values remove more noise
+  but may introduce "watery" artefacts.
+• Output file (opt.) — Where to save the cleaned file.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Record a few seconds of pure room/background noise at the start of
+  your recording specifically for use as a noise profile.
+• Start with Strength 1.0 and increase only if noise is still audible.
+• Strength above 2.0 often causes musical noise ("warbling") —
+  use carefully.
+• This tool works best on continuous, steady noise (fans, hum).
+  It is less effective on intermittent noise (clicks, pops).
+• For click/pop removal, consider running the audio through a DAW
+  with dedicated click-removal plugins.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Reduce background noise via spectral subtraction 🔇", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -566,6 +909,32 @@ class _NoiseReducerPanel(_ToolPanel):
 class _FadePanel(_ToolPanel):
     title = "Fade Effect"
     icon = "🌅"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Applies a fade-in (gradual volume increase at the start) and/or a
+fade-out (gradual volume decrease at the end) to an audio file.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The audio file to apply fades to.
+• Fade-in (s) — Duration of the fade-in in seconds.
+  Set to 0.0 to skip the fade-in.
+• Fade-out (s) — Duration of the fade-out in seconds.
+  Set to 0.0 to skip the fade-out.
+• Output file (opt.) — Where to save the result.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• A fade-in of 0.5–2 s is natural for most music tracks.
+• A fade-out of 3–8 s feels smooth on most tracks.
+• Use short fades (0.05–0.2 s) to avoid clicks/pops when joining
+  clips in the Audio Merger tool.
+• Very long fade-outs (15–30 s) create a cinematic "ambient" ending.
+• Apply fade-in to clips that start abruptly to soften the entry.
+• Setting both to 0.0 and using this tool simply passes the audio
+  through unchanged.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Add fade-in / fade-out to an audio file 🌅", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -613,6 +982,37 @@ class _FadePanel(_ToolPanel):
 class _SilenceRemoverPanel(_ToolPanel):
     title = "Silence Remover"
     icon = "🤫"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Detects and removes sections of silence from an audio file, joining
+the remaining audio segments together.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The audio file to process.
+• Min silence (ms) — Minimum length of a silent section (in
+  milliseconds) to be considered as silence and removed.
+  Shorter gaps are kept. Default: 500 ms.
+• Threshold (dBFS) — Volume level below which audio is considered
+  silent. Default: -40.0 dBFS.
+  Lower (more negative) = only very quiet sections are removed.
+  Higher (less negative, e.g. -20) = more sections treated as silent.
+• Padding (ms) — How many milliseconds to keep at the start and end
+  of each audio segment (prevents cutting speech too abruptly).
+• Output file (opt.) — Where to save the result.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• For podcast/interview editing: Threshold -35, Min silence 300 ms,
+  Padding 100 ms gives natural-sounding results.
+• For music with natural breathing room, use a longer Min silence
+  (1000–2000 ms) so musical pauses are kept.
+• Too aggressive a threshold can cut off soft notes or quiet speech.
+  Start conservative and adjust step by step.
+• Padding prevents the "clipped words" effect where the beginning or
+  end of a syllable gets cut off.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Strip silent sections from an audio file 🤫", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -666,6 +1066,34 @@ class _SilenceRemoverPanel(_ToolPanel):
 class _ChannelPanel(_ToolPanel):
     title = "Channel Converter"
     icon = "🎧"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Converts an audio file between stereo (2-channel) and mono (1-channel).
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The audio file to convert.
+• Target channels:
+    1 (mono)   — Mixes the left and right channels into one channel.
+    2 (stereo) — Duplicates the mono channel to both L and R channels.
+• Output file (opt.) — Where to save the result.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Mono is ideal for:
+    - Podcasts and voice recordings (smaller file, mono playback)
+    - DJ monitoring (check for phase issues)
+    - Ringtones and alert sounds
+• Stereo is ideal for:
+    - Music with spatial width (panning, stereo effects)
+    - Film/video audio
+• Converting stereo → mono checks for phase cancellation: if the left
+  and right channels are out of phase, mixing them will cause certain
+  frequencies to cancel out, resulting in a thin or hollow sound.
+• Use the Waveform Plotter on both L and R channels to spot obvious
+  stereo imbalances before converting.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Convert audio between stereo and mono 🎧", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -707,6 +1135,36 @@ class _ChannelPanel(_ToolPanel):
 class _TempoPanel(_ToolPanel):
     title = "Tempo Changer"
     icon = "⏩"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Changes the playback speed of an audio file without altering its pitch
+(time-stretching).
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The audio file to time-stretch.
+• Speed rate — The playback speed multiplier.
+  1.0 = original speed.
+  Values > 1.0 = faster (e.g. 1.5 = 50% faster).
+  Values < 1.0 = slower (e.g. 0.75 = 25% slower).
+• Output file (opt.) — Where to save the result.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Practical rates for common use cases:
+    0.75  Slow down for practice / transcription
+    0.90  Slightly slower for accessibility
+    1.10  Subtly faster, saves a little time
+    1.25  Speed-listening (podcasts, lectures)
+    1.50  Fast review
+    2.00  Double speed
+• Extreme stretching (< 0.5 or > 2.0) may produce audible artefacts.
+• This tool preserves pitch. If you want to change pitch instead,
+  use the Pitch Shifter tool.
+• Combining tempo change + pitch shift lets you emulate a vinyl
+  speed change effect (try rate 1.05 and semitones +0.8).
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Change playback speed without altering pitch ⏩", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -749,6 +1207,39 @@ class _TempoPanel(_ToolPanel):
 class _ReverbPanel(_ToolPanel):
     title = "Reverb Effect"
     icon = "🏛️"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Adds a reverb (room ambience / echo) effect to an audio file by
+mixing in multiple delayed and decayed copies of the signal.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The audio file to add reverb to.
+• Delay (ms) — Time between each reflection in milliseconds.
+  Higher = larger apparent room size.
+  Typical range: 20–200 ms.
+• Decay (0–1) — How quickly the reflections fade out.
+  0.0 = instant silence (no reverb tail).
+  1.0 = reflections never fade (infinite reverb — use carefully!).
+  Typical range: 0.2–0.7.
+• Reflections — Number of echo copies to add.
+  More = longer, denser reverb tail.
+  Typical range: 3–15.
+• Output file (opt.) — Where to save the result.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Preset ideas:
+    Small room:  delay=30  decay=0.2 reflections=4
+    Studio:      delay=60  decay=0.35 reflections=6
+    Hall:        delay=100 decay=0.5  reflections=10
+    Cathedral:   delay=180 decay=0.7  reflections=15
+• Too much reverb can make vocals sound distant or muddy.
+  Use sparingly on speech and podcast content.
+• For music production, apply reverb to individual tracks in a DAW
+  for more control than whole-file processing.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Add a reverb/room effect to an audio file 🏛️", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -802,6 +1293,33 @@ class _ReverbPanel(_ToolPanel):
 class _KeyDetectorPanel(_ToolPanel):
     title = "Key Detector"
     icon = "🗝️"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Analyses the harmonic content of an audio file and estimates the
+musical key (e.g. C major, A minor) using the Krumhansl–Kessler
+key-finding algorithm.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Audio file — Any common audio format (MP3, WAV, FLAC, OGG …).
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Key detection is an estimate. Songs with complex modulations,
+  mixed tonalities, or strong dissonance may give ambiguous results.
+• Use the result to find harmonically compatible tracks for:
+    - DJ mixing (compatible keys won't clash)
+    - Mashup creation
+    - Sampling (matching a sample to your track's key)
+• The Camelot Wheel is a popular DJ reference for compatible keys:
+    Matching key numbers (same or ±1) on the wheel mix smoothly.
+    Relative major/minor pairs (e.g. C major / A minor) also mix well.
+• For best accuracy use a high-quality, lossless source (WAV or FLAC).
+• A full-length track gives more accurate results than a short clip.
+• If the detected key seems wrong, try shifting pitch by ±1–2 semitones
+  and re-detecting to identify possible enharmonic equivalents.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Detect the musical key of an audio file 🗝️", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -829,6 +1347,34 @@ class _KeyDetectorPanel(_ToolPanel):
 class _VolumePanel(_ToolPanel):
     title = "Volume Adjuster"
     icon = "🔊"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Increases or decreases the overall volume of an audio file by a
+specified number of decibels (dB).
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The audio file to adjust.
+• Volume (dB) — Number of decibels to add to the volume.
+  Positive values make the audio louder (e.g. +6.0 = twice as loud).
+  Negative values make it quieter (e.g. -6.0 = half as loud).
+• Output file (opt.) — Where to save the result.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• The decibel (dB) scale is logarithmic:
+    +6 dB  ≈ double the perceived loudness
+    -6 dB  ≈ half the perceived loudness
+    +3 dB  ≈ noticeably louder
+    -3 dB  ≈ noticeably quieter
+• Be careful with large positive values — they can cause clipping
+  (distortion) if the waveform hits 0 dBFS.
+• To raise volume without risk of clipping, use the Audio Normalizer
+  tool instead (it automatically finds a safe target level).
+• Lowering volume is safe in any amount; there is no lower limit.
+• Use the Waveform Plotter before and after to confirm the change.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Increase or decrease audio volume by dB 🔊", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -871,6 +1417,40 @@ class _VolumePanel(_ToolPanel):
 class _CompressorPanel(_ToolPanel):
     title = "Audio Compressor"
     icon = "📦"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Applies dynamic range compression: reduces the volume of loud
+passages so quiet and loud sections sound more even.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The audio file to compress.
+• Threshold (dBFS) — The volume level above which compression begins.
+  Louder-than-threshold audio is turned down.
+  Default: -20.0 dBFS. More negative = compression starts earlier.
+• Ratio (e.g. 4.0) — How much loud audio is reduced.
+  4.0 = 4:1 ratio: for every 4 dB above threshold, only 1 dB passes.
+  Higher ratio = heavier compression. ∞:1 = limiting (hard ceiling).
+  Typical range: 2.0–8.0.
+• Attack (ms) — How quickly the compressor kicks in after audio
+  exceeds the threshold. Shorter = faster response.
+  Default: 5 ms. Range: 1–100 ms.
+• Release (ms) — How quickly the compressor stops after audio falls
+  below the threshold. Shorter = snappier feel.
+  Default: 50 ms. Range: 10–500 ms.
+• Output file (opt.) — Where to save the result.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Start gentle: Threshold -20, Ratio 3:1, Attack 10 ms, Release 60 ms.
+• Heavy compression (Ratio ≥ 8:1) starts acting like a limiter.
+• Fast attack can reduce transient punch (e.g. on drums).
+  Slow attack lets transients through for a punchier feel.
+• After compressing, raise overall volume with the Volume Adjuster
+  to make up for the gained headroom ("make-up gain").
+• Compression is fundamental in podcasting, broadcast, and mastering.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Apply dynamic range compression to audio 📦", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -929,6 +1509,36 @@ class _CompressorPanel(_ToolPanel):
 class _LoopPanel(_ToolPanel):
     title = "Loop Creator"
     icon = "🔁"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Repeats an audio file a specified number of times to create a longer
+looped version. Optionally applies a crossfade at each loop point
+for a seamless transition.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The audio file to loop.
+• Repeat count — How many times to play the audio in total.
+  2 = play it twice (original + 1 repeat), 4 = four times, etc.
+• Crossfade (ms) — Duration of the fade overlap at each loop join in
+  milliseconds. 0 = hard cut (no crossfade).
+  Use crossfade to smooth seamless loops.
+• Output file (opt.) — Where to save the result.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• For a truly seamless loop, make sure the audio is already loop-ready
+  (the end naturally flows into the beginning — same note, no tail).
+• Add a short crossfade (50–200 ms) to mask small discontinuities at
+  the loop point.
+• Longer crossfades (500+ ms) can create a "blending" effect, useful
+  for ambient textures and background music.
+• Combine with the Fade Effect (fade out the final iteration) to
+  create a naturally ending looped track.
+• Common use cases: background music for videos, game audio, ringtones,
+  music beds for podcasts.
+"""
 
     def _build(self) -> None:
         ttk.Label(self, text="Repeat audio N times to create a loop 🔁", style="Muted.TLabel").pack(anchor="w", padx=16, pady=(12, 8))
@@ -974,12 +1584,264 @@ class _LoopPanel(_ToolPanel):
 
 
 # ---------------------------------------------------------------------------
+# Vocal Auto-Tune panel
+# ---------------------------------------------------------------------------
+
+_AUTOTUNE_SCALES = [
+    "chromatic",
+    "C major", "C# major", "D major", "D# major", "E major",
+    "F major", "F# major", "G major", "G# major", "A major", "A# major", "B major",
+    "C minor", "C# minor", "D minor", "D# minor", "E minor",
+    "F minor", "F# minor", "G minor", "G# minor", "A minor", "A# minor", "B minor",
+]
+
+
+class _AutotunePanel(_ToolPanel):
+    title = "Vocal Auto-Tune"
+    icon = "🎤"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Corrects the pitch of a vocal recording by snapping each note to the
+nearest note in a chosen musical scale. The algorithm:
+  1. Detects the pitch of each voiced segment using PYIN (a probabilistic
+     fundamental-frequency estimator designed for singing voices).
+  2. Finds the closest note in the target scale.
+  3. Shifts that segment's pitch by the difference, scaled by the
+     Correction strength.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The vocal (or any pitched) audio file.
+• Scale — The musical scale to snap to.
+  "chromatic" snaps to the nearest semitone regardless of key, which
+  is useful for cleaning up slightly off-pitch notes without imposing
+  a key. Selecting a specific key/mode (e.g. "C major", "A minor")
+  confines corrections to only the notes of that scale.
+• Correction strength (0.0–1.0) — How far to move each note towards
+  the target:
+    1.0  Full correction — classic robotic auto-tune effect.
+    0.5  Half correction — subtle pitch assist.
+    0.0  No correction — passes audio unchanged.
+• Output file (opt.) — Where to save the result. MP3 inputs are
+  automatically saved as .wav (MP3 write requires FFmpeg post-process).
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Use the Key Detector tool first to find the song's key, then set
+  the Scale here to match — this gives the most musical results.
+• Strength 0.8–1.0 → obvious, modern pop auto-tune effect.
+• Strength 0.3–0.6 → transparent pitch correction (almost undetectable).
+• "Chromatic" is good for melodic instruments (guitar, flute); a
+  specific key scale sounds more natural for vocals.
+• Best results come from clean, single-voice recordings (no backing
+  track, no heavy reverb). Heavy reverb can confuse pitch detection.
+• Very fast melisma (rapid note runs) may not correct cleanly because
+  the algorithm averages pitch over a short window. Use a lower
+  strength in those cases.
+• The output is always mono. If you need stereo output, apply auto-tune
+  to each channel separately and merge with the Audio Merger tool.
+"""
+
+    def _build(self) -> None:
+        ttk.Label(
+            self,
+            text="Correct vocal pitch to the nearest scale note 🎤",
+            style="Muted.TLabel",
+        ).pack(anchor="w", padx=16, pady=(12, 8))
+
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Input file")
+        self._file.pack(fill="x", expand=True)
+
+        r2 = self._row()
+        ttk.Label(r2, text="Scale", style="Muted.TLabel", width=18, anchor="w").pack(side="left")
+        self._scale = ttk.Combobox(r2, values=_AUTOTUNE_SCALES, state="readonly", width=16)
+        self._scale.set("chromatic")
+        self._scale.pack(side="left")
+
+        r3 = self._row()
+        self._strength = _LabeledEntry(r3, "Correction (0–1)", "1.0")
+        self._strength.pack(fill="x", expand=True)
+
+        r4 = self._row()
+        self._out = _FileEntry(r4, "Output file (opt.)", mode="save")
+        self._out.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="🎤  Auto-Tune", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an input file.", "error")
+            return
+        try:
+            strength = float(self._strength.value)
+        except ValueError:
+            self._log("Correction strength must be a number between 0.0 and 1.0.", "error")
+            return
+        scale = self._scale.get()
+        out = self._out.value or None
+        self._log(
+            f"Auto-tuning {path!r} to scale {scale!r} (strength={strength:.2f}) …",
+            "info",
+        )
+
+        def task() -> None:
+            try:
+                from musicprod.tools.vocal_autotune import autotune_vocals
+                result = autotune_vocals(
+                    path, scale=scale, correction_strength=strength, output_path=out
+                )
+                self._log(f"Saved: {result}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+
+        self._run_in_thread(task)
+
+
+# ---------------------------------------------------------------------------
+# Chord Detector panel
+# ---------------------------------------------------------------------------
+
+class _ChordPanel(_ToolPanel):
+    title = "Chord Detector"
+    icon = "🎼"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Analyses the harmonic content of an audio file and detects which chord
+is being played at each moment, producing a full chord progression.
+
+The detection uses a CQT-based chromagram combined with template
+matching against all 24 major and minor triads (C, Cm, C#, C#m, …).
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Audio file — Any common audio format (MP3, WAV, FLAC, OGG …).
+• Frame size (samples) — Size of each analysis window.
+  Larger = smoother chord boundaries but less time resolution.
+  Default: 4096 (~93 ms at 44.1 kHz). Try 2048 for faster songs.
+• Min duration (s) — Chord segments shorter than this are merged into
+  their neighbour to reduce detection noise. Default: 0.5 s.
+• Output text file (opt.) — Save the chord list to a plain-text file.
+  Leave blank to view results only in the log below.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Results are most accurate for recordings with clear harmonic content
+  (piano, guitar, clear vocals). Dense mixes or heavy distortion may
+  reduce accuracy.
+• If you see many fast chord changes, increase Min duration (e.g. 1.0)
+  to get a cleaner, more musical result.
+• Chord names use standard notation:
+    C   = C major (C, E, G)
+    Cm  = C minor (C, Eb, G)
+    C#  = C# major / Db major
+    C#m = C# minor / Db minor
+• Use the detected chords together with the Key Detector result to
+  understand the harmonic structure and find compatible songs.
+• The chord list can be used for transcription, cover versions,
+  remixing, or studying music theory.
+• Save to a text file to copy chord symbols into your DAW, sheet music
+  software, or share with other musicians.
+"""
+
+    def _build(self) -> None:
+        ttk.Label(
+            self,
+            text="Detect chord progression from an audio file 🎼",
+            style="Muted.TLabel",
+        ).pack(anchor="w", padx=16, pady=(12, 8))
+
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Audio file")
+        self._file.pack(fill="x", expand=True)
+
+        r2 = self._row()
+        self._hop_length = _LabeledEntry(r2, "Frame size (samples)", "4096")
+        self._hop_length.pack(fill="x", expand=True)
+
+        r3 = self._row()
+        self._min_dur = _LabeledEntry(r3, "Min duration (s)", "0.5")
+        self._min_dur.pack(fill="x", expand=True)
+
+        r4 = self._row()
+        self._out = _FileEntry(
+            r4,
+            "Output text file (opt.)",
+            mode="save",
+            filetypes=[("Text file", "*.txt"), ("All files", "*.*")],
+        )
+        self._out.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="🎼  Detect Chords", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an audio file.", "error")
+            return
+        try:
+            hop = int(self._hop_length.value)
+            min_dur = float(self._min_dur.value)
+        except ValueError:
+            self._log("Frame size must be an integer and min duration a number.", "error")
+            return
+        out = self._out.value or None
+        self._log(f"Analysing chords in {path!r} …", "info")
+
+        def task() -> None:
+            try:
+                from musicprod.tools.chord_detector import detect_chords, format_chords
+                segments = detect_chords(path, hop_length=hop, min_duration=min_dur, output_path=out)
+                if not segments:
+                    self._log("No chords detected.", "info")
+                    return
+                self._log(f"Detected {len(segments)} chord segment(s):", "success")
+                for line in format_chords(segments).splitlines():
+                    self._log(line, "info")
+                if out:
+                    self._log(f"Saved: {out}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+
+        self._run_in_thread(task)
+
+
+# ---------------------------------------------------------------------------
 # Update panel
 # ---------------------------------------------------------------------------
 
 class _UpdatePanel(_ToolPanel):
     title = "Update"
     icon = "🔃"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Checks whether a newer version of MusicProd is available and
+upgrades the installation automatically.
+
+HOW IT WORKS
+─────────────────────────────────────────────────────
+• If MusicProd was installed by cloning the Git repository, the
+  updater runs "git pull" to fetch and apply the latest commits.
+• If MusicProd was installed via pip, the updater runs
+  "pip install --upgrade musicprod" to install the newest release.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Run the update from time to time to get new tools, bug fixes,
+  and performance improvements.
+• A working internet connection is required.
+• If the update fails, try updating manually:
+    Via git:  git pull origin main
+    Via pip:  pip install --upgrade musicprod
+• After a successful update, restart MusicProd Hub to load any
+  new or changed tool panels.
+• If you modified local files (e.g. settings), a git pull may report
+  conflicts — resolve them in the terminal before re-running.
+"""
 
     def _build(self) -> None:
         ttk.Label(
@@ -1033,6 +1895,8 @@ _PANELS: list[type[_ToolPanel]] = [
     _VolumePanel,
     _CompressorPanel,
     _LoopPanel,
+    _AutotunePanel,
+    _ChordPanel,
     _UpdatePanel,
 ]
 
@@ -1127,7 +1991,7 @@ class MusicProdHub(tk.Tk):
         header.pack(fill="x", padx=0, pady=0)
         ttk.Label(header, text="🌸  MusicProd Hub  🌸", style="Title.TLabel",
                   padding=(20, 12, 0, 4)).pack(side="left")
-        ttk.Label(header, text="20 tools — one place ✨",
+        ttk.Label(header, text="22 tools — one place ✨",
                   style="Subtitle.TLabel", padding=(8, 12, 0, 4)).pack(side="left", anchor="s")
 
         ttk.Separator(self, orient="horizontal").pack(fill="x")
