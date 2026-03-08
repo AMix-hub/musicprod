@@ -39,6 +39,7 @@ def cli() -> None:
       19. compress-audio    Apply dynamic range compression
       20. create-loop       Repeat audio N times to create a loop
       21. detect-chords     Detect the chord progression of an audio file
+      22. autotune-vocals    Apply auto-tune pitch correction to a vocal
       --  hub               Launch the graphical MusicProd Hub
       --  update            Update to the latest version from main
     """
@@ -783,6 +784,73 @@ def detect_chords(
         if output:
             click.secho(f"Saved: {output}", fg="green")
     except (FileNotFoundError, RuntimeError) as exc:
+        click.secho(f"Error: {exc}", fg="red", err=True)
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# Tool 22 — Vocal Auto-Tune
+# ---------------------------------------------------------------------------
+
+@cli.command("autotune-vocals")
+@click.argument("input_path", metavar="FILE")
+@click.option(
+    "--scale",
+    default="chromatic",
+    show_default=True,
+    metavar="SCALE",
+    help=(
+        "Target scale, e.g. 'chromatic', 'C major', 'A minor', "
+        "'F# major', 'Bb minor'."
+    ),
+)
+@click.option(
+    "--strength",
+    default=1.0,
+    show_default=True,
+    type=float,
+    metavar="FLOAT",
+    help="Correction strength from 0.0 (none) to 1.0 (full snap). Default: 1.0.",
+)
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    metavar="FILE",
+    help=(
+        "Destination file path (default: <stem>_autotuned.<ext>). "
+        "MP3 falls back to .wav."
+    ),
+)
+def autotune_vocals(
+    input_path: str,
+    scale: str,
+    strength: float,
+    output: str | None,
+) -> None:
+    """Apply auto-tune pitch correction to a vocal recording.
+
+    \b
+    Examples:
+        musicprod autotune-vocals vocals.wav
+        musicprod autotune-vocals vocals.wav --scale "C major" --strength 0.8
+        musicprod autotune-vocals vocals.mp3 --scale "A minor" -o tuned.wav
+    """
+    from musicprod.tools.vocal_autotune import autotune_vocals as _autotune
+
+    try:
+        click.echo(
+            f"Auto-tuning {input_path!r} to scale {scale!r} "
+            f"(strength={strength:.2f}) …"
+        )
+        result = _autotune(
+            input_path,
+            scale=scale,
+            correction_strength=strength,
+            output_path=output,
+        )
+        click.secho(f"Saved: {result}", fg="green")
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
         click.secho(f"Error: {exc}", fg="red", err=True)
         sys.exit(1)
 

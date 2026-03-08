@@ -1583,6 +1583,122 @@ TIPS & TRICKS
         self._run_in_thread(task)
 
 
+# ---------------------------------------------------------------------------
+# Vocal Auto-Tune panel
+# ---------------------------------------------------------------------------
+
+_AUTOTUNE_SCALES = [
+    "chromatic",
+    "C major", "C# major", "D major", "D# major", "E major",
+    "F major", "F# major", "G major", "G# major", "A major", "A# major", "B major",
+    "C minor", "C# minor", "D minor", "D# minor", "E minor",
+    "F minor", "F# minor", "G minor", "G# minor", "A minor", "A# minor", "B minor",
+]
+
+
+class _AutotunePanel(_ToolPanel):
+    title = "Vocal Auto-Tune"
+    icon = "🎤"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Corrects the pitch of a vocal recording by snapping each note to the
+nearest note in a chosen musical scale. The algorithm:
+  1. Detects the pitch of each voiced segment using PYIN (a probabilistic
+     fundamental-frequency estimator designed for singing voices).
+  2. Finds the closest note in the target scale.
+  3. Shifts that segment's pitch by the difference, scaled by the
+     Correction strength.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The vocal (or any pitched) audio file.
+• Scale — The musical scale to snap to.
+  "chromatic" snaps to the nearest semitone regardless of key, which
+  is useful for cleaning up slightly off-pitch notes without imposing
+  a key. Selecting a specific key/mode (e.g. "C major", "A minor")
+  confines corrections to only the notes of that scale.
+• Correction strength (0.0–1.0) — How far to move each note towards
+  the target:
+    1.0  Full correction — classic robotic auto-tune effect.
+    0.5  Half correction — subtle pitch assist.
+    0.0  No correction — passes audio unchanged.
+• Output file (opt.) — Where to save the result. MP3 inputs are
+  automatically saved as .wav (MP3 write requires FFmpeg post-process).
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Use the Key Detector tool first to find the song's key, then set
+  the Scale here to match — this gives the most musical results.
+• Strength 0.8–1.0 → obvious, modern pop auto-tune effect.
+• Strength 0.3–0.6 → transparent pitch correction (almost undetectable).
+• "Chromatic" is good for melodic instruments (guitar, flute); a
+  specific key scale sounds more natural for vocals.
+• Best results come from clean, single-voice recordings (no backing
+  track, no heavy reverb). Heavy reverb can confuse pitch detection.
+• Very fast melisma (rapid note runs) may not correct cleanly because
+  the algorithm averages pitch over a short window. Use a lower
+  strength in those cases.
+• The output is always mono. If you need stereo output, apply auto-tune
+  to each channel separately and merge with the Audio Merger tool.
+"""
+
+    def _build(self) -> None:
+        ttk.Label(
+            self,
+            text="Correct vocal pitch to the nearest scale note 🎤",
+            style="Muted.TLabel",
+        ).pack(anchor="w", padx=16, pady=(12, 8))
+
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Input file")
+        self._file.pack(fill="x", expand=True)
+
+        r2 = self._row()
+        ttk.Label(r2, text="Scale", style="Muted.TLabel", width=18, anchor="w").pack(side="left")
+        self._scale = ttk.Combobox(r2, values=_AUTOTUNE_SCALES, state="readonly", width=16)
+        self._scale.set("chromatic")
+        self._scale.pack(side="left")
+
+        r3 = self._row()
+        self._strength = _LabeledEntry(r3, "Correction (0–1)", "1.0")
+        self._strength.pack(fill="x", expand=True)
+
+        r4 = self._row()
+        self._out = _FileEntry(r4, "Output file (opt.)", mode="save")
+        self._out.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="🎤  Auto-Tune", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an input file.", "error")
+            return
+        try:
+            strength = float(self._strength.value)
+        except ValueError:
+            self._log("Correction strength must be a number between 0.0 and 1.0.", "error")
+            return
+        scale = self._scale.get()
+        out = self._out.value or None
+        self._log(
+            f"Auto-tuning {path!r} to scale {scale!r} (strength={strength:.2f}) …",
+            "info",
+        )
+
+        def task() -> None:
+            try:
+                from musicprod.tools.vocal_autotune import autotune_vocals
+                result = autotune_vocals(
+                    path, scale=scale, correction_strength=strength, output_path=out
+                )
+                self._log(f"Saved: {result}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+
+        self._run_in_thread(task)
+
 
 # ---------------------------------------------------------------------------
 # Chord Detector panel
@@ -1779,6 +1895,7 @@ _PANELS: list[type[_ToolPanel]] = [
     _VolumePanel,
     _CompressorPanel,
     _LoopPanel,
+    _AutotunePanel,
     _ChordPanel,
     _UpdatePanel,
 ]
@@ -1874,7 +1991,7 @@ class MusicProdHub(tk.Tk):
         header.pack(fill="x", padx=0, pady=0)
         ttk.Label(header, text="🌸  MusicProd Hub  🌸", style="Title.TLabel",
                   padding=(20, 12, 0, 4)).pack(side="left")
-        ttk.Label(header, text="21 tools — one place ✨",
+        ttk.Label(header, text="22 tools — one place ✨",
                   style="Subtitle.TLabel", padding=(8, 12, 0, 4)).pack(side="left", anchor="s")
 
         ttk.Separator(self, orient="horizontal").pack(fill="x")
