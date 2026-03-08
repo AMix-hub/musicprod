@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 import threading
 import tkinter as tk
 from pathlib import Path
@@ -1852,7 +1855,37 @@ TIPS & TRICKS
 
         ttk.Button(
             self, text="🔃  Check for Updates", command=self._run, style="Accent.TButton"
-        ).pack(pady=12)
+        ).pack(pady=(12, 4))
+
+        ttk.Button(
+            self, text="🔄  Restart Hub", command=self._restart_hub, style="Small.TButton"
+        ).pack(pady=(0, 12))
+
+    def _restart_hub(self) -> None:
+        """Restart MusicProd Hub to apply any installed updates.
+
+        When a new exe was downloaded by ``update_via_exe`` it is launched
+        directly after verifying the file exists; otherwise the current Python
+        process is re-executed.
+        """
+        from musicprod.tools.updater import get_pending_restart_exe
+
+        pending = get_pending_restart_exe()
+        if pending is not None:
+            if not pending.is_file():
+                self._log(
+                    f"Restart failed: downloaded exe not found at {pending}", "error"
+                )
+                return
+            launch_args: list[str] = [str(pending)]
+        else:
+            launch_args = [sys.executable] + sys.argv
+        try:
+            subprocess.Popen(launch_args)  # noqa: S603
+        except Exception as exc:  # pragma: no cover
+            self._log(f"Restart failed: {exc}", "error")
+            return
+        self.winfo_toplevel().destroy()
 
     def _run(self) -> None:
         self._log("Checking for updates…", "info")
@@ -1862,8 +1895,18 @@ TIPS & TRICKS
                 from musicprod.tools.updater import self_update
 
                 method, message = self_update()
-                label = "git pull" if method == "git" else "pip upgrade"
+                if method == "git":
+                    label = "git pull"
+                elif method == "pip":
+                    label = "pip upgrade"
+                else:
+                    label = "exe download"
                 self._log(f"[{label}] {message}", "success")
+                self._log(
+                    "➡  Restart MusicProd Hub to load the new version"
+                    " (click the Restart Hub button above).",
+                    "info",
+                )
             except Exception as exc:
                 self._log(f"Update failed: {exc}", "error")
 
