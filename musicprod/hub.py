@@ -133,7 +133,12 @@ class _ToolPanel(ttk.Frame):
         txt.tag_configure("bullet", lmargin1=8, lmargin2=20)
         for line in self.help_text.splitlines(keepends=True):
             stripped = line.rstrip()
-            if stripped and (stripped == stripped.upper() or stripped.startswith("─")):
+            is_heading = (
+                stripped
+                and any(c.isalpha() for c in stripped)
+                and (stripped == stripped.upper() or stripped.startswith("─"))
+            )
+            if is_heading:
                 txt.insert("end", line, "heading")
             elif stripped.startswith("•"):
                 txt.insert("end", line, "bullet")
@@ -1578,6 +1583,116 @@ TIPS & TRICKS
         self._run_in_thread(task)
 
 
+
+# ---------------------------------------------------------------------------
+# Chord Detector panel
+# ---------------------------------------------------------------------------
+
+class _ChordPanel(_ToolPanel):
+    title = "Chord Detector"
+    icon = "🎼"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Analyses the harmonic content of an audio file and detects which chord
+is being played at each moment, producing a full chord progression.
+
+The detection uses a CQT-based chromagram combined with template
+matching against all 24 major and minor triads (C, Cm, C#, C#m, …).
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Audio file — Any common audio format (MP3, WAV, FLAC, OGG …).
+• Frame size (samples) — Size of each analysis window.
+  Larger = smoother chord boundaries but less time resolution.
+  Default: 4096 (~93 ms at 44.1 kHz). Try 2048 for faster songs.
+• Min duration (s) — Chord segments shorter than this are merged into
+  their neighbour to reduce detection noise. Default: 0.5 s.
+• Output text file (opt.) — Save the chord list to a plain-text file.
+  Leave blank to view results only in the log below.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Results are most accurate for recordings with clear harmonic content
+  (piano, guitar, clear vocals). Dense mixes or heavy distortion may
+  reduce accuracy.
+• If you see many fast chord changes, increase Min duration (e.g. 1.0)
+  to get a cleaner, more musical result.
+• Chord names use standard notation:
+    C   = C major (C, E, G)
+    Cm  = C minor (C, Eb, G)
+    C#  = C# major / Db major
+    C#m = C# minor / Db minor
+• Use the detected chords together with the Key Detector result to
+  understand the harmonic structure and find compatible songs.
+• The chord list can be used for transcription, cover versions,
+  remixing, or studying music theory.
+• Save to a text file to copy chord symbols into your DAW, sheet music
+  software, or share with other musicians.
+"""
+
+    def _build(self) -> None:
+        ttk.Label(
+            self,
+            text="Detect chord progression from an audio file 🎼",
+            style="Muted.TLabel",
+        ).pack(anchor="w", padx=16, pady=(12, 8))
+
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Audio file")
+        self._file.pack(fill="x", expand=True)
+
+        r2 = self._row()
+        self._hop_length = _LabeledEntry(r2, "Frame size (samples)", "4096")
+        self._hop_length.pack(fill="x", expand=True)
+
+        r3 = self._row()
+        self._min_dur = _LabeledEntry(r3, "Min duration (s)", "0.5")
+        self._min_dur.pack(fill="x", expand=True)
+
+        r4 = self._row()
+        self._out = _FileEntry(
+            r4,
+            "Output text file (opt.)",
+            mode="save",
+            filetypes=[("Text file", "*.txt"), ("All files", "*.*")],
+        )
+        self._out.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="🎼  Detect Chords", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an audio file.", "error")
+            return
+        try:
+            hop = int(self._hop_length.value)
+            min_dur = float(self._min_dur.value)
+        except ValueError:
+            self._log("Frame size must be an integer and min duration a number.", "error")
+            return
+        out = self._out.value or None
+        self._log(f"Analysing chords in {path!r} …", "info")
+
+        def task() -> None:
+            try:
+                from musicprod.tools.chord_detector import detect_chords, format_chords
+                segments = detect_chords(path, hop_length=hop, min_duration=min_dur, output_path=out)
+                if not segments:
+                    self._log("No chords detected.", "info")
+                    return
+                self._log(f"Detected {len(segments)} chord segment(s):", "success")
+                for line in format_chords(segments).splitlines():
+                    self._log(line, "info")
+                if out:
+                    self._log(f"Saved: {out}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+
+        self._run_in_thread(task)
+
+
 # ---------------------------------------------------------------------------
 # Update panel
 # ---------------------------------------------------------------------------
@@ -1664,6 +1779,7 @@ _PANELS: list[type[_ToolPanel]] = [
     _VolumePanel,
     _CompressorPanel,
     _LoopPanel,
+    _ChordPanel,
     _UpdatePanel,
 ]
 
@@ -1758,7 +1874,7 @@ class MusicProdHub(tk.Tk):
         header.pack(fill="x", padx=0, pady=0)
         ttk.Label(header, text="🌸  MusicProd Hub  🌸", style="Title.TLabel",
                   padding=(20, 12, 0, 4)).pack(side="left")
-        ttk.Label(header, text="20 tools — one place ✨",
+        ttk.Label(header, text="21 tools — one place ✨",
                   style="Subtitle.TLabel", padding=(8, 12, 0, 4)).pack(side="left", anchor="s")
 
         ttk.Separator(self, orient="horizontal").pack(fill="x")
