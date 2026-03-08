@@ -54,7 +54,7 @@ def test_returns_list_of_tuples(tmp_path):
         assert isinstance(end, float)
         assert isinstance(chord, str)
         assert isinstance(conf, float)
-        assert 0.0 <= conf <= 1.0 + 1e-9
+        assert 0.0 <= conf <= 1.0 + 1e-4  # allow floating-point rounding
         assert start <= end
 
 

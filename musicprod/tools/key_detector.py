@@ -109,6 +109,10 @@ def detect_key(input_path: str, top_n: int = 1) -> str | list[KeyResult]:
     results = [
         KeyResult(
             key=key,
+            # Pearson correlation ranges from -1 to 1; negative values indicate
+            # anti-correlation (the key does NOT match).  We clamp to 0 so that
+            # confidence always represents "degree of match" (0 = no match / unclear,
+            # 1 = perfect match).
             confidence=max(0.0, round(score, 4)),
             relative_key=rel_key,
         )

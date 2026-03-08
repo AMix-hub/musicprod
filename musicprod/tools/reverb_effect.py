@@ -138,15 +138,21 @@ def add_reverb(
         frame_rate=audio.frame_rate,
     ).set_channels(audio.channels)
 
-    # Dry/wet blend: apply dB gain to wet to achieve wet_level mix
+    # Dry/wet blend using constant-power (equal-power) crossfade so the
+    # perceived loudness stays consistent at all wet_level values.
+    # dry_gain = cos(wet_level * π/2), wet_gain = sin(wet_level * π/2)
     if wet_level <= 0.0:
         mixed = dry_extended
     elif wet_level >= 1.0:
         mixed = wet
     else:
-        # Convert wet_level (0–1 amplitude ratio) to dB attenuation for wet
-        wet_db = 20 * _log10_safe(wet_level)
-        dry_db = 20 * _log10_safe(1.0 - wet_level)
+        import math
+        angle = wet_level * math.pi / 2.0
+        dry_amp = math.cos(angle)
+        wet_amp = math.sin(angle)
+        # pydub uses dB; convert amplitude ratios to dB
+        dry_db = 20 * _log10_safe(dry_amp)
+        wet_db = 20 * _log10_safe(wet_amp)
         mixed = dry_extended.apply_gain(dry_db).overlay(wet.apply_gain(wet_db))
 
     if output_path:

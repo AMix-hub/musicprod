@@ -83,9 +83,10 @@ def _normalise_mode(raw: str) -> str:
         return clean
     if clean in _MODE_ALIASES:
         return _MODE_ALIASES[clean]
-    # Try prefix matching (e.g. "maj" → "major")
-    for alias, canon in _MODE_ALIASES.items():
-        if clean.startswith(alias.replace(" ", "").replace("-", "")):
+    # Try prefix matching, longest alias first to avoid short aliases shadowing longer ones
+    for alias, canon in sorted(_MODE_ALIASES.items(), key=lambda kv: len(kv[0]), reverse=True):
+        alias_clean = alias.replace(" ", "").replace("-", "")
+        if clean.startswith(alias_clean):
             return canon
     raise ValueError(
         f"Unknown mode {raw!r}. Supported modes: "

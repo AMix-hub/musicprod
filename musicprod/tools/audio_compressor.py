@@ -16,6 +16,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+# Brickwall limiter ratio: a value high enough to make attenuation above
+# the threshold virtually infinite without triggering overflow in pydub.
+_LIMITER_RATIO = 1000.0
+
 
 def compress_audio(
     input_path: str,
@@ -87,8 +91,8 @@ def compress_audio(
     if knee_width < 0:
         raise ValueError(f"knee_width must be >= 0, got {knee_width}")
 
-    # In limiter mode use a very high ratio to approximate ∞:1
-    effective_ratio = 1000.0 if limiter else ratio
+    # In limiter mode use _LIMITER_RATIO to approximate ∞:1 compression
+    effective_ratio = _LIMITER_RATIO if limiter else ratio
 
     # Soft-knee: adjust the effective threshold downward by half the knee
     # width so that compression starts gradually before the nominal threshold.
