@@ -44,6 +44,26 @@ The hub provides:
 
 ---
 
+## Windows — Standalone EXE 🪟
+
+Don't want to install Python?  Download the pre-built **`musicprod-hub.exe`**
+from the [latest GitHub Release](https://github.com/AMix-hub/musicprod/releases/latest)
+and double-click to launch — no installation required.
+
+### Updating the EXE
+
+The Hub has a built-in one-click updater on the **Update** tab:
+
+1. Open MusicProd Hub.
+2. Click **🔃 Check for Updates** — the hub contacts GitHub Releases,
+   downloads the new `musicprod-hub.exe` in the background, and confirms
+   in the output log when the download is complete.
+3. Click **🔄 Restart Hub** — the new binary launches and the old one exits.
+
+That's it.  No manual file management needed.
+
+---
+
 ## Updating MusicProd
 
 When a new version is pushed to `main` you don't need to re-download or
@@ -55,12 +75,17 @@ musicprod update
 
 The command automatically detects how the package is installed:
 
+- **Windows EXE** — downloads the latest `musicprod-hub.exe` from GitHub
+  Releases and prompts you to restart.
 - **Git clone (editable install)** — runs `git pull --ff-only` inside the
   repository directory.  Because the package is installed with
   `pip install -e .`, the updated code is active immediately — no reinstall
   needed.
 - **Regular pip install** — upgrades the package from the GitHub repository
   with `pip install --upgrade git+https://github.com/AMix-hub/musicprod.git`.
+
+After any update, **restart MusicProd Hub** (or click the **🔄 Restart Hub**
+button) so the new code is loaded.
 
 ---
 

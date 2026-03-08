@@ -876,7 +876,12 @@ def update() -> None:
     click.echo("Checking for updates…")
     try:
         method, message = self_update()
-        label = "git pull" if method == "git" else "pip upgrade"
+        if method == "git":
+            label = "git pull"
+        elif method == "pip":
+            label = "pip upgrade"
+        else:
+            label = "exe download"
         click.secho(f"[{label}] {message}", fg="green")
         click.echo("➡  Restart MusicProd (or the Hub) to load the new version.")
     except RuntimeError as exc:

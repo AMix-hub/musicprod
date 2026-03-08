@@ -1,0 +1,40 @@
+name: Build Windows EXE
+
+# Build and upload musicprod-hub.exe whenever a version tag is pushed
+# (e.g. v0.2.0).  The resulting binary is attached to the GitHub Release
+# that is automatically created for the tag so the self-patching updater
+# can find and download it.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest
+    permissions:
+      contents: write   # needed to upload release assets
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package and PyInstaller
+        run: |
+          pip install -e .
+          pip install pyinstaller==6.12.0
+
+      - name: Build executable
+        run: pyinstaller musicprod-hub.spec
+
+      - name: Create GitHub Release and upload exe
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/musicprod-hub.exe
+          generate_release_notes: true
