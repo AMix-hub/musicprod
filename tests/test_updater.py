@@ -172,6 +172,7 @@ def test_cli_update_command_success_git():
     assert result.exit_code == 0
     assert "git pull" in result.output
     assert "Already up to date." in result.output
+    assert "Restart" in result.output
 
 
 def test_cli_update_command_success_pip():
@@ -184,6 +185,7 @@ def test_cli_update_command_success_pip():
     assert result.exit_code == 0
     assert "pip upgrade" in result.output
     assert "Upgrade complete." in result.output
+    assert "Restart" in result.output
 
 
 def test_cli_update_command_failure():

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 import threading
 import tkinter as tk
 from pathlib import Path
@@ -1852,7 +1855,20 @@ TIPS & TRICKS
 
         ttk.Button(
             self, text="🔃  Check for Updates", command=self._run, style="Accent.TButton"
-        ).pack(pady=12)
+        ).pack(pady=(12, 4))
+
+        ttk.Button(
+            self, text="🔄  Restart Hub", command=self._restart_hub, style="Small.TButton"
+        ).pack(pady=(0, 12))
+
+    def _restart_hub(self) -> None:
+        """Restart MusicProd Hub to apply any installed updates."""
+        try:
+            subprocess.Popen([sys.executable] + sys.argv)  # noqa: S603
+        except Exception as exc:  # pragma: no cover
+            self._log(f"Restart failed: {exc}", "error")
+            return
+        self.winfo_toplevel().destroy()
 
     def _run(self) -> None:
         self._log("Checking for updates…", "info")
@@ -1864,6 +1880,11 @@ TIPS & TRICKS
                 method, message = self_update()
                 label = "git pull" if method == "git" else "pip upgrade"
                 self._log(f"[{label}] {message}", "success")
+                self._log(
+                    "➡  Restart MusicProd Hub to load the new version"
+                    " (click the Restart Hub button above).",
+                    "info",
+                )
             except Exception as exc:
                 self._log(f"Update failed: {exc}", "error")
 
