@@ -55,7 +55,7 @@ def test_parse_scale_unknown_root_raises():
 def test_parse_scale_unknown_mode_raises():
     from musicprod.tools.vocal_autotune import _parse_scale
     with pytest.raises(ValueError, match="Unknown mode"):
-        _parse_scale("C diminished")
+        _parse_scale("C bebop")
 
 
 # ---------------------------------------------------------------------------
@@ -274,3 +274,158 @@ def test_autotune_librosa_error_raises_runtime(tmp_path):
     with patch("librosa.load", side_effect=Exception("codec error")):
         with pytest.raises(RuntimeError, match="Auto-tune failed"):
             autotune_vocals(str(src))
+
+
+# ---------------------------------------------------------------------------
+# New advanced features
+# ---------------------------------------------------------------------------
+
+def test_parse_scale_dorian():
+    from musicprod.tools.vocal_autotune import _parse_scale
+    # D dorian: D(2) + E(4) + F(5) + G(7) + A(9) + B(11) + C(0) + D(2)
+    # intervals = (0,2,3,5,7,9,10) from root=2
+    result = _parse_scale("D dorian")
+    expected = sorted([(2 + iv) % 12 for iv in (0, 2, 3, 5, 7, 9, 10)])
+    assert sorted(result) == expected
+
+
+def test_parse_scale_pentatonic():
+    from musicprod.tools.vocal_autotune import _parse_scale
+    # A pentatonic major: (0,2,4,7,9) from root=9
+    result = _parse_scale("A pentatonic")
+    expected = sorted([(9 + iv) % 12 for iv in (0, 2, 4, 7, 9)])
+    assert sorted(result) == expected
+
+
+def test_parse_scale_blues():
+    from musicprod.tools.vocal_autotune import _parse_scale
+    result = _parse_scale("A blues")
+    expected = sorted([(9 + iv) % 12 for iv in (0, 3, 5, 6, 7, 10)])
+    assert sorted(result) == expected
+
+
+def test_parse_scale_harmonic_minor():
+    from musicprod.tools.vocal_autotune import _parse_scale
+    result = _parse_scale("A harmonic minor")
+    expected = sorted([(9 + iv) % 12 for iv in (0, 2, 3, 5, 7, 8, 11)])
+    assert sorted(result) == expected
+
+
+def test_parse_scale_diminished():
+    from musicprod.tools.vocal_autotune import _parse_scale
+    result = _parse_scale("C diminished")
+    expected = sorted([(0 + iv) % 12 for iv in (0, 2, 3, 5, 6, 8, 9, 11)])
+    assert sorted(result) == expected
+
+
+def test_invalid_retune_speed_raises(tmp_path):
+    from musicprod.tools.vocal_autotune import autotune_vocals
+    dummy = tmp_path / "v.wav"
+    dummy.write_bytes(b"\x00" * 64)
+    with pytest.raises(ValueError, match="retune_speed"):
+        autotune_vocals(str(dummy), retune_speed=-1.0)
+
+
+def test_invalid_humanize_raises(tmp_path):
+    from musicprod.tools.vocal_autotune import autotune_vocals
+    dummy = tmp_path / "v.wav"
+    dummy.write_bytes(b"\x00" * 64)
+    with pytest.raises(ValueError, match="humanize"):
+        autotune_vocals(str(dummy), humanize=1.5)
+
+
+def test_autotune_with_retune_speed(tmp_path):
+    """retune_speed > 0 applies IIR smoothing and still produces output."""
+    from musicprod.tools.vocal_autotune import autotune_vocals
+
+    src = tmp_path / "vocal.wav"
+    src.write_bytes(b"\x00" * 64)
+
+    sr = 22050
+    y = np.zeros(sr * 2, dtype=np.float32)
+    hop_length = 512
+    n_frames = len(y) // hop_length + 1
+    fake_pyin = _make_pyin_output(sr, hop_length, n_frames)
+
+    with patch("librosa.load", return_value=(y, sr)), \
+         patch("librosa.pyin", return_value=fake_pyin), \
+         patch("librosa.effects.pitch_shift", return_value=y[:hop_length]), \
+         patch("soundfile.write") as mock_write:
+        result = autotune_vocals(str(src), scale="C major", retune_speed=50.0)
+
+    mock_write.assert_called_once()
+    assert "_autotuned" in result.name
+
+
+def test_autotune_transpose(tmp_path):
+    """transpose parameter shifts corrected output by a fixed offset."""
+    from musicprod.tools.vocal_autotune import autotune_vocals
+
+    src = tmp_path / "vocal.wav"
+    src.write_bytes(b"\x00" * 64)
+
+    sr = 22050
+    y = np.zeros(sr, dtype=np.float32)
+    hop_length = 512
+    n_frames = len(y) // hop_length + 1
+    fake_pyin = _make_pyin_output(sr, hop_length, n_frames)
+
+    with patch("librosa.load", return_value=(y, sr)), \
+         patch("librosa.pyin", return_value=fake_pyin), \
+         patch("librosa.effects.pitch_shift", return_value=y[:hop_length]) as mock_shift, \
+         patch("soundfile.write"):
+        autotune_vocals(str(src), scale="chromatic", correction_strength=0.0, transpose=2.0)
+
+    # With correction_strength=0 but transpose=2, pitch_shift should be called
+    # (transpose is applied to voiced frames)
+    assert mock_shift.called
+
+
+def test_autotune_humanize_does_not_crash(tmp_path):
+    """humanize=0.5 runs without error."""
+    from musicprod.tools.vocal_autotune import autotune_vocals
+
+    src = tmp_path / "vocal.wav"
+    src.write_bytes(b"\x00" * 64)
+
+    sr = 22050
+    y = np.zeros(sr, dtype=np.float32)
+    hop_length = 512
+    n_frames = len(y) // hop_length + 1
+    fake_pyin = _make_pyin_output(sr, hop_length, n_frames)
+
+    with patch("librosa.load", return_value=(y, sr)), \
+         patch("librosa.pyin", return_value=fake_pyin), \
+         patch("librosa.effects.pitch_shift", return_value=y[:hop_length]), \
+         patch("soundfile.write") as mock_write:
+        autotune_vocals(str(src), scale="A minor", humanize=0.5)
+
+    mock_write.assert_called_once()
+
+
+def test_autotune_formant_shift_does_not_crash(tmp_path):
+    """formant_shift != 0 triggers _apply_formant_shift without error."""
+    from musicprod.tools.vocal_autotune import autotune_vocals
+
+    src = tmp_path / "vocal.wav"
+    src.write_bytes(b"\x00" * 64)
+
+    sr = 22050
+    y = np.zeros(sr, dtype=np.float32)
+    hop_length = 512
+    n_frames = len(y) // hop_length + 1
+
+    # All unvoiced — no pitch shift, but formant_shift still runs
+    f0 = np.full(n_frames, np.nan)
+    voiced_flag = np.zeros(n_frames, dtype=bool)
+    voiced_probs = np.zeros(n_frames)
+    fake_pyin = (f0, voiced_flag, voiced_probs)
+
+    with patch("librosa.load", return_value=(y, sr)), \
+         patch("librosa.pyin", return_value=fake_pyin), \
+         patch("librosa.stft", return_value=np.zeros((1025, 10), dtype=complex)), \
+         patch("librosa.istft", return_value=y), \
+         patch("soundfile.write") as mock_write:
+        autotune_vocals(str(src), formant_shift=2.0)
+
+    mock_write.assert_called_once()

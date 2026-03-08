@@ -19,7 +19,7 @@ def test_file_not_found():
 
 
 def test_returns_list_of_tuples(tmp_path):
-    """detect_chords returns a list of (start, end, chord) tuples."""
+    """detect_chords returns a list of (start, end, chord, confidence) tuples."""
     from musicprod.tools.chord_detector import detect_chords
 
     dummy = tmp_path / "song.mp3"
@@ -48,22 +48,26 @@ def test_returns_list_of_tuples(tmp_path):
     assert isinstance(segments, list)
     assert len(segments) >= 1
     for item in segments:
-        assert len(item) == 3
-        start, end, chord = item
+        assert len(item) == 4
+        start, end, chord, conf = item
         assert isinstance(start, float)
         assert isinstance(end, float)
         assert isinstance(chord, str)
+        assert isinstance(conf, float)
+        assert 0.0 <= conf <= 1.0 + 1e-4  # allow floating-point rounding
         assert start <= end
 
 
 def test_chord_names_are_valid(tmp_path):
-    """All returned chord names are among the 24 major/minor triads."""
-    from musicprod.tools.chord_detector import detect_chords, _NOTES
+    """All returned chord names are among the supported chord types."""
+    from musicprod.tools.chord_detector import detect_chords, _build_chord_templates
 
     dummy = tmp_path / "song.mp3"
     dummy.write_bytes(b"\x00" * 64)
 
-    valid_names = {n for n in _NOTES} | {f"{n}m" for n in _NOTES}
+    # Build the full set of valid chord names from the current templates
+    valid_names, _ = _build_chord_templates()
+    valid_set = set(valid_names)
 
     sr = 22050
     y = np.zeros(sr * 2)
@@ -75,8 +79,8 @@ def test_chord_names_are_valid(tmp_path):
          patch("librosa.frames_to_time", return_value=fake_times):
         segments = detect_chords(str(dummy), hop_length=4096, min_duration=0.0)
 
-    for _, _, chord in segments:
-        assert chord in valid_names, f"Unexpected chord name: {chord!r}"
+    for _, _, chord, _ in segments:
+        assert chord in valid_set, f"Unexpected chord name: {chord!r}"
 
 
 def test_librosa_error_raises_runtime_error(tmp_path):
@@ -146,14 +150,14 @@ def test_merge_short_segments_removes_stub():
     from musicprod.tools.chord_detector import _merge_short_segments
 
     segments = [
-        (0.0, 2.0, "C"),
-        (2.0, 2.3, "G"),   # short — 0.3 s < 0.5 s
-        (2.3, 5.0, "Am"),
+        (0.0, 2.0, "C", 0.9),
+        (2.0, 2.3, "G", 0.6),   # short — 0.3 s < 0.5 s
+        (2.3, 5.0, "Am", 0.8),
     ]
     merged = _merge_short_segments(segments, min_duration=0.5)
 
     # The 0.3-second G segment must be absorbed
-    assert all((e - s) >= 0.5 for s, e, _ in merged)
+    assert all((e - s) >= 0.5 for s, e, _, _conf in merged)
     assert len(merged) == 2
 
 
@@ -161,16 +165,16 @@ def test_merge_short_segments_single_segment():
     """A single-segment list is returned unchanged."""
     from musicprod.tools.chord_detector import _merge_short_segments
 
-    segments = [(0.0, 1.0, "C")]
+    segments = [(0.0, 1.0, "C", 0.9)]
     merged = _merge_short_segments(segments, min_duration=2.0)
-    assert merged == [(0.0, 1.0, "C")]
+    assert merged == [(0.0, 1.0, "C", 0.9)]
 
 
 def test_merge_short_segments_all_long():
     """Segments that already meet min_duration are not changed."""
     from musicprod.tools.chord_detector import _merge_short_segments
 
-    segments = [(0.0, 1.0, "C"), (1.0, 2.0, "G"), (2.0, 3.0, "Am")]
+    segments = [(0.0, 1.0, "C", 0.9), (1.0, 2.0, "G", 0.8), (2.0, 3.0, "Am", 0.7)]
     merged = _merge_short_segments(segments, min_duration=0.5)
     assert merged == segments
 
@@ -183,7 +187,11 @@ def test_format_chords_output():
     """format_chords produces correctly formatted lines."""
     from musicprod.tools.chord_detector import format_chords
 
-    segments = [(0.0, 4.0, "C"), (4.0, 8.0, "Am"), (8.0, 12.0, "F")]
+    segments = [
+        (0.0, 4.0, "C", 0.95),
+        (4.0, 8.0, "Am", 0.88),
+        (8.0, 12.0, "F", 0.75),
+    ]
     output = format_chords(segments)
     lines = output.splitlines()
 
@@ -191,13 +199,15 @@ def test_format_chords_output():
     assert "0:00" in lines[0] and "C" in lines[0]
     assert "Am" in lines[1]
     assert "F" in lines[2]
+    # Confidence scores should appear
+    assert "conf" in lines[0]
 
 
 def test_format_chords_time_format():
     """Times are formatted as M:SS (minutes:seconds zero-padded)."""
     from musicprod.tools.chord_detector import format_chords
 
-    segments = [(65.0, 130.0, "G")]
+    segments = [(65.0, 130.0, "G", 0.9)]
     output = format_chords(segments)
 
     assert "1:05" in output
@@ -216,27 +226,20 @@ def test_format_chords_empty():
 # ---------------------------------------------------------------------------
 
 def test_build_chord_templates_shape():
-    """Template matrix must be (24, 12)."""
+    """Template matrix must be (96, 12) — 8 chord types × 12 roots."""
     from musicprod.tools.chord_detector import _build_chord_templates
 
     names, templates = _build_chord_templates()
 
-    assert len(names) == 24
-    assert templates.shape == (24, 12)
+    assert len(names) == 96
+    assert templates.shape == (96, 12)
 
 
 def test_build_chord_templates_c_major():
     """C major template should have 1s at indices 0 (C), 4 (E), 7 (G)."""
-    from musicprod.tools.chord_detector import _build_chord_templates, _NOTES
+    from musicprod.tools.chord_detector import _build_chord_templates
 
     names, templates = _build_chord_templates()
-
-    # Verify alternating major/minor pattern for all 12 roots
-    expected = []
-    for note in _NOTES:
-        expected.append(note)
-        expected.append(f"{note}m")
-    assert names == expected
 
     c_idx = names.index("C")
     row = templates[c_idx]
@@ -258,3 +261,29 @@ def test_build_chord_templates_a_minor():
     assert row[0] == 1  # C
     assert row[4] == 1  # E
     assert row.sum() == 3
+
+
+def test_build_chord_templates_c_dominant_7():
+    """C7 template should have 1s at 0 (C), 4 (E), 7 (G), 10 (Bb)."""
+    from musicprod.tools.chord_detector import _build_chord_templates
+
+    names, templates = _build_chord_templates()
+
+    c7_idx = names.index("C7")
+    row = templates[c7_idx]
+    assert row[0] == 1   # C
+    assert row[4] == 1   # E
+    assert row[7] == 1   # G
+    assert row[10] == 1  # Bb
+    assert row.sum() == 4
+
+
+def test_build_chord_templates_includes_7th_and_sus_types():
+    """All expected chord types should be present for the C root."""
+    from musicprod.tools.chord_detector import _build_chord_templates
+
+    names, _ = _build_chord_templates()
+    name_set = set(names)
+
+    for chord in ["C", "Cm", "C7", "Cmaj7", "Cm7", "Cdim7", "Csus2", "Csus4"]:
+        assert chord in name_set, f"{chord!r} missing from templates"
