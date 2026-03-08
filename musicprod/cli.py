@@ -82,20 +82,34 @@ def youtube_to_mp3(url: str, output: str | None) -> None:
 
 @cli.command("detect-bpm")
 @click.argument("file_path", metavar="FILE")
-def detect_bpm(file_path: str) -> None:
+@click.option(
+    "--top-n",
+    default=1,
+    show_default=True,
+    type=int,
+    metavar="N",
+    help="Return the N most likely tempos ranked by confidence (default: 1).",
+)
+def detect_bpm(file_path: str, top_n: int) -> None:
     """Estimate the BPM/tempo of an audio file.
 
     \b
-    Example:
+    Examples:
         musicprod detect-bpm track.mp3
+        musicprod detect-bpm track.mp3 --top-n 3
     """
     from musicprod.tools.bpm_detector import detect_bpm as _detect
 
     try:
         click.echo(f"Analysing: {file_path}")
-        bpm = _detect(file_path)
-        click.secho(f"Detected BPM: {bpm}", fg="green")
-    except (FileNotFoundError, RuntimeError) as exc:
+        result = _detect(file_path, top_n=top_n)
+        if top_n == 1:
+            click.secho(f"Detected BPM: {result}", fg="green")
+        else:
+            click.secho("Top tempo candidates:", fg="green")
+            for i, r in enumerate(result, 1):
+                click.echo(f"  {i}. {r.bpm} BPM  (confidence: {r.confidence:.2f})")
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
         click.secho(f"Error: {exc}", fg="red", err=True)
         sys.exit(1)
 
@@ -279,21 +293,34 @@ def normalize_audio(input_path: str, target_dbfs: float, output: str | None) -> 
 @click.argument("input_path", metavar="FILE")
 @click.option("--semitones", required=True, type=float, metavar="N",
               help="Semitones to shift (positive = higher, negative = lower).")
+@click.option("--preserve-formants", is_flag=True, default=False,
+              help="Apply formant correction after pitch shift to preserve voice character.")
 @click.option("--output", "-o", default=None, metavar="FILE",
               help="Destination file path (default: <stem>_pitched.<ext>).")
-def shift_pitch(input_path: str, semitones: float, output: str | None) -> None:
-    """Shift the pitch of an audio file by a number of semitones.
+def shift_pitch(
+    input_path: str,
+    semitones: float,
+    preserve_formants: bool,
+    output: str | None,
+) -> None:
+    """Shift the pitch of an audio file by a number of semitones (stereo-aware).
 
     \b
     Examples:
         musicprod shift-pitch track.mp3 --semitones 2
-        musicprod shift-pitch track.mp3 --semitones -3 --output lower.mp3
+        musicprod shift-pitch vocals.wav --semitones 4 --preserve-formants
+        musicprod shift-pitch track.mp3 --semitones -3 --output lower.wav
     """
     from musicprod.tools.pitch_shifter import shift_pitch as _shift
 
     try:
         click.echo(f"Shifting pitch of {input_path!r} by {semitones:+.1f} semitones …")
-        result = _shift(input_path, semitones=semitones, output_path=output)
+        result = _shift(
+            input_path,
+            semitones=semitones,
+            preserve_formants=preserve_formants,
+            output_path=output,
+        )
         click.secho(f"Saved: {result}", fg="green")
     except (FileNotFoundError, RuntimeError) as exc:
         click.secho(f"Error: {exc}", fg="red", err=True)
@@ -364,24 +391,48 @@ def merge_audio(input_paths: tuple[str, ...], output: str | None) -> None:
 @cli.command("plot-waveform")
 @click.argument("input_path", metavar="FILE")
 @click.option("--output", "-o", default=None, metavar="FILE",
-              help="Destination PNG path (default: <stem>_waveform.png).")
+              help="Destination PNG path (default: <stem>_waveform.png or <stem>_spectrogram.png).")
 @click.option("--width", default=12, show_default=True, type=int,
               help="Figure width in inches.")
 @click.option("--height", default=4, show_default=True, type=int,
               help="Figure height in inches.")
-def plot_waveform(input_path: str, output: str | None, width: int, height: int) -> None:
-    """Generate a waveform PNG image for an audio file.
+@click.option(
+    "--mode",
+    default="waveform",
+    show_default=True,
+    type=click.Choice(["waveform", "spectrogram"], case_sensitive=False),
+    help="Plot type: 'waveform' or 'spectrogram' (mel spectrogram).",
+)
+@click.option(
+    "--show-rms",
+    is_flag=True,
+    default=False,
+    help="Overlay the RMS energy envelope on the waveform plot.",
+)
+def plot_waveform(
+    input_path: str,
+    output: str | None,
+    width: int,
+    height: int,
+    mode: str,
+    show_rms: bool,
+) -> None:
+    """Generate a waveform or mel spectrogram PNG image for an audio file.
 
     \b
     Examples:
         musicprod plot-waveform track.mp3
-        musicprod plot-waveform track.mp3 --width 16 --height 5 --output wave.png
+        musicprod plot-waveform track.mp3 --mode spectrogram
+        musicprod plot-waveform track.mp3 --show-rms --width 16 --height 5
     """
     from musicprod.tools.waveform_plotter import plot_waveform as _plot
 
     try:
-        click.echo(f"Plotting waveform for {input_path!r} …")
-        result = _plot(input_path, output_path=output, width=width, height=height)
+        click.echo(f"Plotting {mode} for {input_path!r} …")
+        result = _plot(
+            input_path, output_path=output, width=width, height=height,
+            mode=mode, show_rms=show_rms,
+        )
         click.secho(f"Saved: {result}", fg="green")
     except (FileNotFoundError, ValueError, RuntimeError) as exc:
         click.secho(f"Error: {exc}", fg="red", err=True)
@@ -397,23 +448,46 @@ def plot_waveform(input_path: str, output: str | None, width: int, height: int) 
 @click.option("--noise-duration", default=0.5, show_default=True, type=float, metavar="SECONDS",
               help="Seconds at the start of the file used to estimate noise profile.")
 @click.option("--strength", default=1.0, show_default=True, type=float, metavar="FACTOR",
-              help="Subtraction strength (0–3, default 1.0).")
+              help="Noise suppression strength (0–3, default 1.0).")
+@click.option(
+    "--method",
+    default="wiener",
+    show_default=True,
+    type=click.Choice(["wiener", "subtract"], case_sensitive=False),
+    help="Algorithm: 'wiener' (musical, default) or 'subtract' (aggressive).",
+)
+@click.option("--spectral-floor", default=0.05, show_default=True, type=float, metavar="FLOAT",
+              help="Minimum gain floor (0–1) to prevent over-subtraction artefacts.")
 @click.option("--output", "-o", default=None, metavar="FILE",
               help="Destination file path (default: <stem>_denoised.<ext>).")
-def reduce_noise(input_path: str, noise_duration: float, strength: float, output: str | None) -> None:
-    """Reduce background noise using spectral subtraction.
+def reduce_noise(
+    input_path: str,
+    noise_duration: float,
+    strength: float,
+    method: str,
+    spectral_floor: float,
+    output: str | None,
+) -> None:
+    """Reduce background noise using Wiener filtering or spectral subtraction.
 
     \b
     Examples:
         musicprod reduce-noise noisy.wav
-        musicprod reduce-noise noisy.wav --strength 1.5 --noise-duration 1.0
+        musicprod reduce-noise noisy.wav --method subtract --strength 1.5
+        musicprod reduce-noise noisy.wav --method wiener --spectral-floor 0.1
     """
     from musicprod.tools.noise_reducer import reduce_noise as _reduce
 
     try:
-        click.echo(f"Reducing noise in {input_path!r} …")
-        result = _reduce(input_path, noise_duration=noise_duration, strength=strength,
-                         output_path=output)
+        click.echo(f"Reducing noise in {input_path!r} (method={method}) …")
+        result = _reduce(
+            input_path,
+            noise_duration=noise_duration,
+            strength=strength,
+            method=method,
+            spectral_floor=spectral_floor,
+            output_path=output,
+        )
         click.secho(f"Saved: {result}", fg="green")
     except (FileNotFoundError, ValueError, RuntimeError) as exc:
         click.secho(f"Error: {exc}", fg="red", err=True)
@@ -567,6 +641,17 @@ def change_tempo(input_path: str, rate: float, output: str | None) -> None:
               help="Volume reduction per reflection (0–1).")
 @click.option("--reflections", default=5, show_default=True, type=int, metavar="N",
               help="Number of reflected copies (1–20).")
+@click.option("--wet-level", default=0.3, show_default=True, type=float, metavar="FLOAT",
+              help="Dry/wet mix: 0.0 = dry only, 1.0 = wet only (default: 0.3).")
+@click.option("--pre-delay-ms", default=0, show_default=True, type=int, metavar="MS",
+              help="Pre-delay before the first reflection in milliseconds.")
+@click.option(
+    "--room-size",
+    default=None,
+    type=click.Choice(["small", "medium", "large"], case_sensitive=False),
+    metavar="PRESET",
+    help="Room-size preset (small/medium/large). Overrides delay/decay/reflections.",
+)
 @click.option("--output", "-o", default=None, metavar="FILE",
               help="Destination file path (default: <stem>_reverb.<ext>).")
 def add_reverb(
@@ -574,6 +659,9 @@ def add_reverb(
     delay_ms: int,
     decay: float,
     reflections: int,
+    wet_level: float,
+    pre_delay_ms: int,
+    room_size: str | None,
     output: str | None,
 ) -> None:
     """Add a reverb/room effect to an audio file.
@@ -581,14 +669,24 @@ def add_reverb(
     \b
     Examples:
         musicprod add-reverb dry.wav
-        musicprod add-reverb dry.wav --delay-ms 120 --decay 0.3 --reflections 8
+        musicprod add-reverb dry.wav --room-size large --wet-level 0.5
+        musicprod add-reverb dry.wav --delay-ms 120 --decay 0.3 --pre-delay-ms 20
     """
     from musicprod.tools.reverb_effect import add_reverb as _reverb
 
     try:
-        click.echo(f"Adding reverb to {input_path!r} …")
-        result = _reverb(input_path, delay_ms=delay_ms, decay=decay,
-                         reflections=reflections, output_path=output)
+        desc = f"room-size={room_size}" if room_size else f"delay={delay_ms}ms"
+        click.echo(f"Adding reverb to {input_path!r} ({desc}, wet={wet_level:.1f}) …")
+        result = _reverb(
+            input_path,
+            delay_ms=delay_ms,
+            decay=decay,
+            reflections=reflections,
+            wet_level=wet_level,
+            pre_delay_ms=pre_delay_ms,
+            room_size=room_size,
+            output_path=output,
+        )
         click.secho(f"Saved: {result}", fg="green")
     except (FileNotFoundError, ValueError, RuntimeError) as exc:
         click.secho(f"Error: {exc}", fg="red", err=True)
@@ -601,20 +699,38 @@ def add_reverb(
 
 @cli.command("detect-key")
 @click.argument("input_path", metavar="FILE")
-def detect_key(input_path: str) -> None:
+@click.option(
+    "--top-n",
+    default=1,
+    show_default=True,
+    type=int,
+    metavar="N",
+    help="Return the N most likely keys ranked by confidence (default: 1).",
+)
+def detect_key(input_path: str, top_n: int) -> None:
     """Detect the musical key of an audio file.
 
     \b
-    Example:
+    Examples:
         musicprod detect-key track.mp3
+        musicprod detect-key track.mp3 --top-n 3
     """
     from musicprod.tools.key_detector import detect_key as _detect
 
     try:
         click.echo(f"Analysing: {input_path}")
-        key = _detect(input_path)
-        click.secho(f"Detected key: {key}", fg="green")
-    except (FileNotFoundError, RuntimeError) as exc:
+        result = _detect(input_path, top_n=top_n)
+        if top_n == 1:
+            click.secho(f"Detected key: {result}", fg="green")
+        else:
+            click.secho("Top key candidates:", fg="green")
+            for i, r in enumerate(result, 1):
+                click.echo(
+                    f"  {i}. {r.key:<14}  "
+                    f"(confidence: {r.confidence:.2f},  "
+                    f"relative: {r.relative_key})"
+                )
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
         click.secho(f"Error: {exc}", fg="red", err=True)
         sys.exit(1)
 
@@ -657,11 +773,17 @@ def adjust_volume(input_path: str, db: float, output: str | None) -> None:
 @click.option("--threshold", default=-20.0, show_default=True, type=float, metavar="DBFS",
               help="Threshold in dBFS above which compression is applied.")
 @click.option("--ratio", default=4.0, show_default=True, type=float, metavar="RATIO",
-              help="Compression ratio (e.g. 4.0 for 4:1).")
+              help="Compression ratio (e.g. 4.0 for 4:1). Ignored when --limiter is set.")
 @click.option("--attack", default=5.0, show_default=True, type=float, metavar="MS",
               help="Attack time in milliseconds.")
 @click.option("--release", default=50.0, show_default=True, type=float, metavar="MS",
               help="Release time in milliseconds.")
+@click.option("--makeup-gain", default=0.0, show_default=True, type=float, metavar="DB",
+              help="Post-compression makeup gain in dB.")
+@click.option("--knee", default=0.0, show_default=True, type=float, metavar="DB",
+              help="Soft-knee width in dB around the threshold (0 = hard knee).")
+@click.option("--limiter", is_flag=True, default=False,
+              help="Enable brickwall limiter mode (ratio = ∞).")
 @click.option("--output", "-o", default=None, metavar="FILE",
               help="Destination file path (default: <stem>_compressed.<ext>).")
 def compress_audio(
@@ -670,6 +792,9 @@ def compress_audio(
     ratio: float,
     attack: float,
     release: float,
+    makeup_gain: float,
+    knee: float,
+    limiter: bool,
     output: str | None,
 ) -> None:
     """Apply dynamic range compression to an audio file.
@@ -677,18 +802,25 @@ def compress_audio(
     \b
     Examples:
         musicprod compress-audio track.mp3
-        musicprod compress-audio track.mp3 --threshold -15 --ratio 6
+        musicprod compress-audio track.mp3 --threshold -15 --ratio 6 --makeup-gain 3
+        musicprod compress-audio track.mp3 --limiter --threshold -3
     """
     from musicprod.tools.audio_compressor import compress_audio as _compress
 
     try:
-        click.echo(f"Compressing {input_path!r} (threshold={threshold} dBFS, ratio={ratio}:1) …")
+        mode = "limiter" if limiter else f"ratio={ratio}:1"
+        click.echo(
+            f"Compressing {input_path!r} (threshold={threshold} dBFS, {mode}) …"
+        )
         result = _compress(
             input_path,
             threshold=threshold,
             ratio=ratio,
             attack=attack,
             release=release,
+            makeup_gain=makeup_gain,
+            knee_width=knee,
+            limiter=limiter,
             output_path=output,
         )
         click.secho(f"Saved: {result}", fg="green")
@@ -801,7 +933,7 @@ def detect_chords(
     metavar="SCALE",
     help=(
         "Target scale, e.g. 'chromatic', 'C major', 'A minor', "
-        "'F# major', 'Bb minor'."
+        "'F# dorian', 'B mixolydian', 'A blues', 'E pentatonic'."
     ),
 )
 @click.option(
@@ -811,6 +943,44 @@ def detect_chords(
     type=float,
     metavar="FLOAT",
     help="Correction strength from 0.0 (none) to 1.0 (full snap). Default: 1.0.",
+)
+@click.option(
+    "--retune-speed",
+    default=0.0,
+    show_default=True,
+    type=float,
+    metavar="MS",
+    help=(
+        "Retune speed in ms (0 = instant/robotic, 50-200 = natural glide). "
+        "Like Auto-Tune Pro's Retune Speed knob."
+    ),
+)
+@click.option(
+    "--formant-shift",
+    default=0.0,
+    show_default=True,
+    type=float,
+    metavar="SEMITONES",
+    help=(
+        "Independent formant shift in semitones (0 = unchanged). "
+        "Positive = brighter/smaller voice; negative = darker/larger."
+    ),
+)
+@click.option(
+    "--transpose",
+    default=0.0,
+    show_default=True,
+    type=float,
+    metavar="SEMITONES",
+    help="Fixed semitone offset applied after scale correction (default: 0).",
+)
+@click.option(
+    "--humanize",
+    default=0.0,
+    show_default=True,
+    type=float,
+    metavar="FLOAT",
+    help="Pitch jitter amount 0.0–1.0 to avoid robotic artefacts (default: 0).",
 )
 @click.option(
     "--output",
@@ -826,27 +996,40 @@ def autotune_vocals(
     input_path: str,
     scale: str,
     strength: float,
+    retune_speed: float,
+    formant_shift: float,
+    transpose: float,
+    humanize: float,
     output: str | None,
 ) -> None:
-    """Apply auto-tune pitch correction to a vocal recording.
+    """Apply professional auto-tune pitch correction to a vocal recording.
+
+    Per-frame PYIN pitch detection with IIR-smoothed retune speed gives
+    results comparable to commercial pitch-correction plug-ins.
 
     \b
     Examples:
         musicprod autotune-vocals vocals.wav
         musicprod autotune-vocals vocals.wav --scale "C major" --strength 0.8
-        musicprod autotune-vocals vocals.mp3 --scale "A minor" -o tuned.wav
+        musicprod autotune-vocals vocals.wav --scale "A minor" --retune-speed 80
+        musicprod autotune-vocals vocals.wav --scale "A blues" --humanize 0.3
+        musicprod autotune-vocals vocals.mp3 --scale "F# dorian" -o tuned.wav
     """
     from musicprod.tools.vocal_autotune import autotune_vocals as _autotune
 
     try:
         click.echo(
-            f"Auto-tuning {input_path!r} to scale {scale!r} "
-            f"(strength={strength:.2f}) …"
+            f"Auto-tuning {input_path!r} → scale={scale!r}, "
+            f"strength={strength:.2f}, retune_speed={retune_speed}ms …"
         )
         result = _autotune(
             input_path,
             scale=scale,
             correction_strength=strength,
+            retune_speed=retune_speed,
+            formant_shift=formant_shift,
+            transpose=transpose,
+            humanize=humanize,
             output_path=output,
         )
         click.secho(f"Saved: {result}", fg="green")
