@@ -2,6 +2,37 @@
 
 A collection of command-line tools **and a graphical hub** for music production, built in Python.
 
+---
+
+## 🪟 Windows Users — Get the EXE (no Python required)
+
+> **The `.exe` file is NOT included in the repository source code.**  
+> It is built automatically and published to **GitHub Releases** whenever a new version is tagged.
+
+### How to download and run
+
+1. Go to the [**Releases page**](https://github.com/AMix-hub/musicprod/releases/latest).
+2. Under **Assets**, click **`musicprod-hub.exe`** to download it.
+3. Double-click the downloaded file — no installation needed.
+
+If you cloned or downloaded the repository as a ZIP, you will **not** find the `.exe` inside it.  
+You must download the pre-built binary from the Releases page as described above.
+
+#### Building the EXE yourself (optional)
+
+If you prefer to build the executable from source:
+
+```bash
+# 1. Install the package and PyInstaller
+pip install -e .
+pip install pyinstaller
+
+# 2. Build the executable (output: dist/musicprod-hub.exe)
+pyinstaller musicprod-hub.spec
+```
+
+---
+
 ## 10 Music Production Tools
 
 | # | Tool | CLI Command | Description |
@@ -46,9 +77,7 @@ The hub provides:
 
 ## Windows — Standalone EXE 🪟
 
-Don't want to install Python?  Download the pre-built **`musicprod-hub.exe`**
-from the [latest GitHub Release](https://github.com/AMix-hub/musicprod/releases/latest)
-and double-click to launch — no installation required.
+See the [**Windows Users section at the top**](#-windows-users--get-the-exe-no-python-required) for download instructions.
 
 ### Updating the EXE
 
