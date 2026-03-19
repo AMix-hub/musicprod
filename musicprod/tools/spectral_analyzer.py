@@ -242,6 +242,7 @@ def analyze_spectrum(
         )
         ax2.set_title("Chroma Features (pitch-class energy)", color="#7ecfff", fontsize=10)
         ax2.set_xlabel("")
+        ax2.set_yticks(np.arange(len(note_names)))
         ax2.set_yticklabels(note_names, fontsize=7)
         cbar2 = fig.colorbar(img2, ax=ax2, pad=0.01)
         plt.setp(cbar2.ax.yaxis.get_ticklabels(), color="#999999", fontsize=8)
