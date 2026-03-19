@@ -46,6 +46,7 @@ _TRUSTED_URL_PREFIXES = (
     "https://api.github.com/",
     "https://github.com/",
     "https://api.github.com/repos/AMix-hub/musicprod/",
+    "https://github.com/AMix-hub/musicprod/releases,
     "https://objects.githubusercontent.com/",
 )
 
