@@ -145,29 +145,21 @@ def split_stems(
         hop_length = 512
 
         # ------------------------------------------------------------------
-        # HPSS — split mono into harmonic + percussive magnitude masks
+        # HPSS — split mono into harmonic + percussive soft masks
         # ------------------------------------------------------------------
         D_mono = librosa.stft(y_mono, n_fft=n_fft, hop_length=hop_length)
         mag_mono = np.abs(D_mono)
         phase_mono = np.angle(D_mono)
 
-        H_mask, P_mask = librosa.decompose.hpss(
+        H_mask_norm, P_mask_norm = librosa.decompose.hpss(
             mag_mono,
             kernel_size=hpss_kernel_size,
             margin=hpss_margin,
             power=2.0,
+            mask=True,
         )
-        # Normalise masks so they sum to 1 at each bin/frame
-        total = H_mask + P_mask + 1e-10
-        H_mask_norm = H_mask / total
-        P_mask_norm = P_mask / total
 
-        # Reconstruct mono harmonic and percussive waveforms
-        harm_mono = librosa.istft(
-            H_mask_norm * mag_mono * np.exp(1j * phase_mono),
-            hop_length=hop_length,
-            length=len(y_mono),
-        )
+        # Reconstruct mono percussive waveform (drums)
         perc_mono = librosa.istft(
             P_mask_norm * mag_mono * np.exp(1j * phase_mono),
             hop_length=hop_length,
