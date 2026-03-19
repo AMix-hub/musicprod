@@ -39,7 +39,10 @@ def cli() -> None:
       19. compress-audio    Apply dynamic range compression
       20. create-loop       Repeat audio N times to create a loop
       21. detect-chords     Detect the chord progression of an audio file
-      22. autotune-vocals    Apply auto-tune pitch correction to a vocal
+      22. autotune-vocals   Apply auto-tune pitch correction to a vocal
+      23. split-stems       Separate audio into drums/bass/vocals/other stems
+      24. analyze-spectrum  Generate a multi-panel spectral analysis image
+      25. excite-harmonics  Add harmonic saturation (tube/tape/transistor)
       --  hub               Launch the graphical MusicProd Hub
       --  update            Update to the latest version from main
     """
@@ -1030,6 +1033,266 @@ def autotune_vocals(
             formant_shift=formant_shift,
             transpose=transpose,
             humanize=humanize,
+            output_path=output,
+        )
+        click.secho(f"Saved: {result}", fg="green")
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        click.secho(f"Error: {exc}", fg="red", err=True)
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# Tool 23 — Stem Splitter
+# ---------------------------------------------------------------------------
+
+@cli.command("split-stems")
+@click.argument("input_path", metavar="FILE")
+@click.option(
+    "--stems",
+    default="drums,bass,vocals,other",
+    show_default=True,
+    metavar="LIST",
+    help=(
+        "Comma-separated list of stems to produce.  "
+        "Any subset of: drums, bass, vocals, other."
+    ),
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    default=None,
+    metavar="DIR",
+    help="Directory to write stem files (default: <source_stem>_stems/).",
+)
+@click.option(
+    "--bass-cutoff",
+    default=300.0,
+    show_default=True,
+    type=float,
+    metavar="HZ",
+    help="Frequency (Hz) below which harmonic content is classified as bass.",
+)
+@click.option(
+    "--hpss-margin",
+    default=3.0,
+    show_default=True,
+    type=float,
+    metavar="FLOAT",
+    help="HPSS margin parameter (1–10).  Higher = crisper separation.",
+)
+def split_stems(
+    input_path: str,
+    stems: str,
+    output_dir: str | None,
+    bass_cutoff: float,
+    hpss_margin: float,
+) -> None:
+    """Separate an audio file into drums, bass, vocals, and other stems.
+
+    Uses Harmonic/Percussive Source Separation (HPSS) combined with
+    frequency-band masking and mid/side extraction to isolate each stem
+    without requiring a neural network or GPU.
+
+    \b
+    Examples:
+        musicprod split-stems song.mp3
+        musicprod split-stems song.wav --stems drums,bass
+        musicprod split-stems mix.flac --output-dir /tmp/stems --bass-cutoff 250
+    """
+    from musicprod.tools.stem_splitter import split_stems as _split
+
+    stem_list = [s.strip() for s in stems.split(",") if s.strip()]
+    try:
+        click.echo(
+            f"Splitting {input_path!r} → stems: {', '.join(stem_list)} …"
+        )
+        results = _split(
+            input_path,
+            stems=stem_list,
+            output_dir=output_dir,
+            bass_cutoff=bass_cutoff,
+            hpss_margin=hpss_margin,
+        )
+        for stem_key, path in results.items():
+            click.secho(f"  [{stem_key}] → {path}", fg="green")
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        click.secho(f"Error: {exc}", fg="red", err=True)
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# Tool 24 — Spectral Analyzer
+# ---------------------------------------------------------------------------
+
+@cli.command("analyze-spectrum")
+@click.argument("input_path", metavar="FILE")
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    metavar="FILE",
+    help="Destination image path (default: <stem>_analysis.png).",
+)
+@click.option(
+    "--n-mels",
+    default=128,
+    show_default=True,
+    type=int,
+    metavar="INT",
+    help="Number of mel frequency bands (default: 128).",
+)
+@click.option(
+    "--top-db",
+    default=80.0,
+    show_default=True,
+    type=float,
+    metavar="DB",
+    help="Dynamic range in dB for the mel spectrogram (default: 80).",
+)
+@click.option(
+    "--width",
+    default=1400,
+    show_default=True,
+    type=int,
+    metavar="PX",
+    help="Output image width in pixels (default: 1400).",
+)
+@click.option(
+    "--height",
+    default=900,
+    show_default=True,
+    type=int,
+    metavar="PX",
+    help="Output image height in pixels (default: 900).",
+)
+def analyze_spectrum(
+    input_path: str,
+    output: str | None,
+    n_mels: int,
+    top_db: float,
+    width: int,
+    height: int,
+) -> None:
+    """Generate a professional multi-panel spectral analysis image.
+
+    Produces a dark-themed PNG with four panels:
+    mel spectrogram, chroma features, spectral centroid, and RMS energy.
+
+    \b
+    Examples:
+        musicprod analyze-spectrum song.mp3
+        musicprod analyze-spectrum song.wav --output analysis.png
+        musicprod analyze-spectrum song.flac --n-mels 256 --width 1920
+    """
+    from musicprod.tools.spectral_analyzer import analyze_spectrum as _analyze
+
+    try:
+        click.echo(f"Analysing {input_path!r} …")
+        result = _analyze(
+            input_path,
+            output_path=output,
+            n_mels=n_mels,
+            top_db=top_db,
+            width=width,
+            height=height,
+        )
+        click.secho(f"Saved: {result}", fg="green")
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        click.secho(f"Error: {exc}", fg="red", err=True)
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# Tool 25 — Harmonic Exciter
+# ---------------------------------------------------------------------------
+
+@cli.command("excite-harmonics")
+@click.argument("input_path", metavar="FILE")
+@click.option(
+    "--drive",
+    default=0.3,
+    show_default=True,
+    type=float,
+    metavar="FLOAT",
+    help="Saturation drive amount 0.0–1.0 (default: 0.3).",
+)
+@click.option(
+    "--blend",
+    default=0.5,
+    show_default=True,
+    type=float,
+    metavar="FLOAT",
+    help="Dry/wet blend 0.0–1.0 (default: 0.5).",
+)
+@click.option(
+    "--mode",
+    default="tube",
+    show_default=True,
+    type=click.Choice(["tube", "tape", "transistor"], case_sensitive=False),
+    help=(
+        "Saturation character: tube (warm, even harmonics), "
+        "tape (smooth compression), transistor (edgy, odd harmonics)."
+    ),
+)
+@click.option(
+    "--freq-band",
+    default="highs",
+    show_default=True,
+    type=click.Choice(["full", "highs", "lows"], case_sensitive=False),
+    help="Which frequency range to saturate (default: highs).",
+)
+@click.option(
+    "--band-cutoff",
+    default=3000.0,
+    show_default=True,
+    type=float,
+    metavar="HZ",
+    help="Cross-over frequency in Hz for highs/lows band modes (default: 3000).",
+)
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    metavar="FILE",
+    help="Destination file path (default: <stem>_excited.<ext>).",
+)
+def excite_harmonics(
+    input_path: str,
+    drive: float,
+    blend: float,
+    mode: str,
+    freq_band: str,
+    band_cutoff: float,
+    output: str | None,
+) -> None:
+    """Add harmonic saturation (tube, tape, or transistor) to an audio file.
+
+    Enhances perceived brightness, warmth, and presence by introducing
+    controlled harmonic distortion — the same technique used in professional
+    mastering chains and studio hardware exciter units.
+
+    \b
+    Examples:
+        musicprod excite-harmonics vocal.wav
+        musicprod excite-harmonics track.wav --mode tape --drive 0.4 --blend 0.6
+        musicprod excite-harmonics bass.wav --freq-band lows --mode transistor
+        musicprod excite-harmonics mix.flac --mode tube --drive 0.2 -o mix_warm.wav
+    """
+    from musicprod.tools.harmonic_exciter import excite as _excite
+
+    try:
+        click.echo(
+            f"Exciting {input_path!r} "
+            f"(mode={mode}, drive={drive:.2f}, blend={blend:.2f}, "
+            f"band={freq_band}) …"
+        )
+        result = _excite(
+            input_path,
+            drive=drive,
+            blend=blend,
+            mode=mode,
+            freq_band=freq_band,
+            band_cutoff=band_cutoff,
             output_path=output,
         )
         click.secho(f"Saved: {result}", fg="green")

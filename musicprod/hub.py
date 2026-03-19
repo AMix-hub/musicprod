@@ -1813,6 +1813,389 @@ TIPS & TRICKS
 
 
 # ---------------------------------------------------------------------------
+# Stem Splitter panel
+# ---------------------------------------------------------------------------
+
+_STEM_OPTIONS = ["drums", "bass", "vocals", "other"]
+
+
+class _StemSplitterPanel(_ToolPanel):
+    title = "Stem Splitter"
+    icon = "🎛️"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Separates an audio file into up to four independent stems using a
+signal-processing pipeline — no GPU or neural network required:
+
+  • Drums  — percussive transients (kick, snare, cymbals, hi-hats)
+  • Bass   — tonal content below the bass cutoff frequency
+  • Vocals — centre-panned tonal content (works best on stereo mixes)
+  • Other  — wide-panned instruments (guitars, pads, synths)
+
+ALGORITHM
+─────────────────────────────────────────────────────
+1. HPSS (Harmonic/Percussive Source Separation) splits the signal into
+   a harmonic layer and a percussive layer using median-filter masking on
+   the magnitude spectrogram.
+2. The harmonic layer is further split by frequency:
+   Bass = below Bass cutoff Hz; upper = above cutoff.
+3. On stereo material, the upper harmonic layer is split into mid channel
+   (centre-panned = vocals) and side channel (wide = other instruments).
+4. Each stem is saved as a WAV file in the output directory.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file      — Any common audio format (MP3, WAV, FLAC, OGG …).
+• Stems           — Check boxes for the stems you want.
+• Output dir      — Where to save the stem files.
+• Bass cutoff (Hz) — Frequency below which content is classified as bass.
+  Default 300 Hz. Typical range 200–400 Hz.
+• HPSS margin     — Sharpness of harmonic/percussive separation (1–10).
+  Higher values give crisper splits but may leak more artefacts.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Best results come from stereo masters (not individual tracks).
+• The vocal stem captures centre-panned content — any centred instrument
+  (piano, lead synth) will appear there too.
+• Increase HPSS margin to 5–8 for cleaner drum separation on dense mixes.
+• Use Bass cutoff 200 Hz for hip-hop/EDM; 350 Hz for rock/pop.
+• Stems can be reimported into your DAW for remixing or practice.
+"""
+
+    def _build(self) -> None:
+        ttk.Label(
+            self,
+            text="Separate audio into drums, bass, vocals, and other stems 🎛️",
+            style="Muted.TLabel",
+        ).pack(anchor="w", padx=16, pady=(12, 8))
+
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Input file")
+        self._file.pack(fill="x", expand=True)
+
+        # Stem checkboxes
+        r2 = self._row()
+        ttk.Label(r2, text="Stems", style="Muted.TLabel", width=18, anchor="w").pack(side="left")
+        self._stem_vars: dict[str, tk.BooleanVar] = {}
+        for stem in _STEM_OPTIONS:
+            var = tk.BooleanVar(value=True)
+            self._stem_vars[stem] = var
+            ttk.Checkbutton(r2, text=stem.capitalize(), variable=var).pack(side="left", padx=4)
+
+        r3 = self._row()
+        self._out_dir = _FileEntry(r3, "Output dir (opt.)", mode="dir",
+                                   filetypes=[("All files", "*.*")])
+        self._out_dir.pack(fill="x", expand=True)
+
+        r4 = self._row()
+        self._bass_cutoff = _LabeledEntry(r4, "Bass cutoff (Hz)", "300")
+        self._bass_cutoff.pack(fill="x", expand=True)
+
+        r5 = self._row()
+        self._margin = _LabeledEntry(r5, "HPSS margin", "3.0")
+        self._margin.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="🎛️  Split Stems", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an input file.", "error")
+            return
+        stems = [s for s, v in self._stem_vars.items() if v.get()]
+        if not stems:
+            self._log("Please select at least one stem.", "error")
+            return
+        try:
+            cutoff = float(self._bass_cutoff.value)
+            margin = float(self._margin.value)
+        except ValueError:
+            self._log("Bass cutoff and HPSS margin must be numbers.", "error")
+            return
+        out_dir = self._out_dir.value or None
+        self._log(
+            f"Splitting {path!r} into {', '.join(stems)} …", "info"
+        )
+
+        def task() -> None:
+            try:
+                from musicprod.tools.stem_splitter import split_stems
+                results = split_stems(
+                    path,
+                    stems=stems,
+                    output_dir=out_dir,
+                    bass_cutoff=cutoff,
+                    hpss_margin=margin,
+                )
+                for stem_key, stem_path in results.items():
+                    self._log(f"  [{stem_key}] → {stem_path}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+
+        self._run_in_thread(task)
+
+
+# ---------------------------------------------------------------------------
+# Spectral Analyzer panel
+# ---------------------------------------------------------------------------
+
+class _SpectralAnalyzerPanel(_ToolPanel):
+    title = "Spectral Analyzer"
+    icon = "📊"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Generates a professional-grade multi-panel spectral analysis image of an
+audio file, saved as a PNG on a dark background.  The image contains four
+complementary panels that all share a common time axis:
+
+1. Mel Spectrogram — frequency content over time on the perceptual mel scale.
+   Colour (magma palette) maps to power in dBFS.  Shows timbre, energy
+   distribution, and tonal events at a glance.
+
+2. Chroma Features — 12 pitch-class energy bins (C, C♯ … B).  Shows which
+   notes are active at each moment, making key centre and chord movement
+   readable without listening.
+
+3. Spectral Centroid — the "brightness" of the mix over time (kHz).
+   A rising centroid means increasing high-frequency energy (e.g. a hi-hat
+   build); a falling centroid signals a darker, warmer timbre.
+
+4. RMS Energy — root-mean-square amplitude envelope (dBFS).  Shows the
+   dynamic structure of the track — intro, verse, chorus, drop, outro.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — Any common audio format (MP3, WAV, FLAC, OGG …).
+• Output PNG (opt.) — Where to save the image.
+  Default: <stem>_analysis.png next to the source.
+• Mel bands — Number of mel bands (default 128). More = finer resolution.
+• Dynamic range (dB) — Colour range of the mel spectrogram (default 80 dB).
+• Width / Height (px) — Output image dimensions in pixels.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• Use 256 mel bands for detailed frequency analysis of complex mixes.
+• Set a larger dynamic range (100+ dB) to show very quiet detail.
+• Width 1920 × Height 1080 produces a full-HD analysis image.
+• The chroma panel can confirm the key detected by the Key Detector tool.
+• Compare two spectrograms side-by-side to spot differences between
+  different masters or mix versions of the same track.
+"""
+
+    def _build(self) -> None:
+        ttk.Label(
+            self,
+            text="Generate a multi-panel spectral analysis image 📊",
+            style="Muted.TLabel",
+        ).pack(anchor="w", padx=16, pady=(12, 8))
+
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Input file")
+        self._file.pack(fill="x", expand=True)
+
+        r2 = self._row()
+        self._out = _FileEntry(
+            r2,
+            "Output PNG (opt.)",
+            mode="save",
+            filetypes=[("PNG image", "*.png"), ("All files", "*.*")],
+        )
+        self._out.pack(fill="x", expand=True)
+
+        r3 = self._row()
+        self._n_mels = _LabeledEntry(r3, "Mel bands", "128")
+        self._n_mels.pack(fill="x", expand=True)
+
+        r4 = self._row()
+        self._top_db = _LabeledEntry(r4, "Dynamic range (dB)", "80")
+        self._top_db.pack(fill="x", expand=True)
+
+        r5 = self._row()
+        self._width = _LabeledEntry(r5, "Width (px)", "1400")
+        self._width.pack(fill="x", expand=True)
+
+        r6 = self._row()
+        self._height = _LabeledEntry(r6, "Height (px)", "900")
+        self._height.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="📊  Analyse Spectrum", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an input file.", "error")
+            return
+        try:
+            n_mels = int(self._n_mels.value)
+            top_db = float(self._top_db.value)
+            width = int(self._width.value)
+            height = int(self._height.value)
+        except ValueError:
+            self._log("Mel bands and width/height must be integers; dynamic range a number.", "error")
+            return
+        out = self._out.value or None
+        self._log(f"Analysing spectrum of {path!r} …", "info")
+
+        def task() -> None:
+            try:
+                from musicprod.tools.spectral_analyzer import analyze_spectrum
+                result = analyze_spectrum(
+                    path,
+                    output_path=out,
+                    n_mels=n_mels,
+                    top_db=top_db,
+                    width=width,
+                    height=height,
+                )
+                self._log(f"Saved: {result}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+
+        self._run_in_thread(task)
+
+
+# ---------------------------------------------------------------------------
+# Harmonic Exciter panel
+# ---------------------------------------------------------------------------
+
+_EXCITER_MODES = ["tube", "tape", "transistor"]
+_EXCITER_BANDS = ["highs", "lows", "full"]
+
+
+class _ExciterPanel(_ToolPanel):
+    title = "Harmonic Exciter"
+    icon = "⚡"
+    help_text = """\
+WHAT THIS TOOL DOES
+─────────────────────────────────────────────────────
+Adds harmonic content to an audio signal to enhance perceived brightness,
+warmth, and presence — the same technique used in professional mastering
+chains, studio hardware exciter units, and analogue signal processors.
+
+Particularly useful for:
+• Acoustic recordings that sound dull or lacking sparkle.
+• Vocals that need more "air" (5–12 kHz presence).
+• Bass lines that need more warmth or definition.
+• Mix bus processing to add subtle analogue colour.
+
+SATURATION MODES
+─────────────────────────────────────────────────────
+• Tube (valve) — Soft even-harmonic saturation.  Warm, rounded character.
+  Emulates the smooth compression of a triode valve amplifier.
+• Tape — Gentle tanh-based saturation.  Subtle compression and warmth.
+  Mimics the magnetic saturation of analogue tape machines.
+• Transistor — Asymmetric hard/soft clipping.  Edge and aggression.
+  Introduces odd-order harmonics like a bipolar transistor circuit.
+
+PARAMETERS
+─────────────────────────────────────────────────────
+• Input file — The audio file to process.
+• Drive (0–1) — Saturation amount.  0 = no harmonics; 1 = maximum drive.
+  Values 0.2–0.4 are typical for transparent mastering-style processing.
+  Values 0.6–0.9 give noticeable colouration.
+• Blend (0–1) — Dry/wet mix.  0 = original only; 1 = fully processed.
+  0.4–0.6 is a good starting point.
+• Mode — Saturation character (see above).
+• Freq band — Which frequency range to saturate:
+    Highs — Apply only above Band cutoff (default).  Best for "air".
+    Lows  — Apply only below Band cutoff.  Best for bass warmth.
+    Full  — Apply to the full spectrum.
+• Band cutoff (Hz) — Cross-over frequency for Highs/Lows modes (default 3 kHz).
+• Output file (opt.) — Where to save the result.
+
+TIPS & TRICKS
+─────────────────────────────────────────────────────
+• For mastering: Tube mode, drive 0.2, blend 0.4, freq band = Highs.
+• For bass "warmth": Transistor mode, drive 0.5, blend 0.5, freq band = Lows.
+• For vocal "air": Tube mode, drive 0.3, blend 0.5, Band cutoff = 8000 Hz.
+• Combine with the Noise Reducer before exciting to avoid amplifying noise.
+• Always A/B compare by setting blend = 0 (bypass) vs your target blend.
+"""
+
+    def _build(self) -> None:
+        ttk.Label(
+            self,
+            text="Add harmonic saturation (tube / tape / transistor) ⚡",
+            style="Muted.TLabel",
+        ).pack(anchor="w", padx=16, pady=(12, 8))
+
+        r1 = self._row()
+        self._file = _FileEntry(r1, "Input file")
+        self._file.pack(fill="x", expand=True)
+
+        r2 = self._row()
+        self._drive = _LabeledEntry(r2, "Drive (0–1)", "0.3")
+        self._drive.pack(fill="x", expand=True)
+
+        r3 = self._row()
+        self._blend = _LabeledEntry(r3, "Blend (0–1)", "0.5")
+        self._blend.pack(fill="x", expand=True)
+
+        r4 = self._row()
+        ttk.Label(r4, text="Mode", style="Muted.TLabel", width=18, anchor="w").pack(side="left")
+        self._mode = ttk.Combobox(r4, values=_EXCITER_MODES, state="readonly", width=14)
+        self._mode.set("tube")
+        self._mode.pack(side="left")
+
+        r5 = self._row()
+        ttk.Label(r5, text="Freq band", style="Muted.TLabel", width=18, anchor="w").pack(side="left")
+        self._band = ttk.Combobox(r5, values=_EXCITER_BANDS, state="readonly", width=14)
+        self._band.set("highs")
+        self._band.pack(side="left")
+
+        r6 = self._row()
+        self._cutoff = _LabeledEntry(r6, "Band cutoff (Hz)", "3000")
+        self._cutoff.pack(fill="x", expand=True)
+
+        r7 = self._row()
+        self._out = _FileEntry(r7, "Output file (opt.)", mode="save")
+        self._out.pack(fill="x", expand=True)
+
+        ttk.Button(self, text="⚡  Excite Harmonics", command=self._run, style="Accent.TButton").pack(pady=12)
+
+    def _run(self) -> None:
+        path = self._file.value
+        if not path:
+            self._log("Please select an input file.", "error")
+            return
+        try:
+            drive = float(self._drive.value)
+            blend = float(self._blend.value)
+            cutoff = float(self._cutoff.value)
+        except ValueError:
+            self._log("Drive, blend, and band cutoff must be numbers.", "error")
+            return
+        mode = self._mode.get()
+        band = self._band.get()
+        out = self._out.value or None
+        self._log(
+            f"Exciting {path!r} (mode={mode}, drive={drive:.2f}, blend={blend:.2f}, band={band}) …",
+            "info",
+        )
+
+        def task() -> None:
+            try:
+                from musicprod.tools.harmonic_exciter import excite
+                result = excite(
+                    path,
+                    drive=drive,
+                    blend=blend,
+                    mode=mode,
+                    freq_band=band,
+                    band_cutoff=cutoff,
+                    output_path=out,
+                )
+                self._log(f"Saved: {result}", "success")
+            except Exception as exc:
+                self._log(f"Error: {exc}", "error")
+
+        self._run_in_thread(task)
+
+
+# ---------------------------------------------------------------------------
 # Update panel
 # ---------------------------------------------------------------------------
 
@@ -1940,6 +2323,9 @@ _PANELS: list[type[_ToolPanel]] = [
     _LoopPanel,
     _AutotunePanel,
     _ChordPanel,
+    _StemSplitterPanel,
+    _SpectralAnalyzerPanel,
+    _ExciterPanel,
     _UpdatePanel,
 ]
 
