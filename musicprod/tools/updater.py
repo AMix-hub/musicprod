@@ -45,6 +45,7 @@ _pending_restart_exe: Path | None = None
 _TRUSTED_URL_PREFIXES = (
     "https://api.github.com/",
     "https://github.com/",
+    "https://api.github.com/repos/AMix-hub/musicprod/",
     "https://objects.githubusercontent.com/",
 )
 
