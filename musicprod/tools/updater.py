@@ -43,6 +43,7 @@ _pending_restart_exe: Path | None = None
 
 # Trusted URL prefixes — download URLs must start with one of these.
 _TRUSTED_URL_PREFIXES = (
+    "https://api.github.com/",
     "https://github.com/",
     "https://objects.githubusercontent.com/",
 )

@@ -335,6 +335,24 @@ def test_http_get_json_rejects_untrusted_url():
         _http_get_json("http://evil.example.com/release")
 
 
+def test_http_get_json_accepts_github_api_url():
+    """_http_get_json accepts https://api.github.com/ URLs (does not raise ValueError)."""
+    from musicprod.tools.updater import _http_get_json
+
+    fake_response = b'{"tag_name": "v0.2.0", "assets": []}'
+    mock_resp = MagicMock()
+    mock_resp.__enter__ = lambda s: s
+    mock_resp.__exit__ = MagicMock(return_value=False)
+    mock_resp.read.return_value = fake_response
+
+    with patch("urllib.request.urlopen", return_value=mock_resp):
+        result = _http_get_json(
+            "https://api.github.com/repos/AMix-hub/musicprod/releases/latest"
+        )
+
+    assert result["tag_name"] == "v0.2.0"
+
+
 def test_download_file_rejects_untrusted_url(tmp_path):
     """_download_file raises ValueError for non-GitHub URLs."""
     from musicprod.tools.updater import _download_file
